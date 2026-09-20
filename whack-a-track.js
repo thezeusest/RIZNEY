@@ -10,6 +10,7 @@
     if (!controls || !main) return;
 
     const STORAGE_KEY = 'mewzing.whack-a-track.destroyed';
+    const GAME_SECONDS = 60;
     const MOLE_COUNT = 12;
     const HITS_TO_WIN = 18;
     const ICONS = ['✦', '★', '♬', '♪', '⚡', '✧', '◉', '●', '✹', '☼'];
@@ -72,7 +73,7 @@
 
     let active = false;
     let hits = 0;
-    let seconds = 20;
+    let seconds = GAME_SECONDS;
     let timer;
     let popTimer;
 
@@ -80,7 +81,7 @@
     const update = () => {
       const left = Math.max(0, HITS_TO_WIN - hits);
       panel.querySelector('#wat-health').textContent = `${'█'.repeat(left)}${'░'.repeat(HITS_TO_WIN - left)}`;
-      panel.querySelector('#wat-time').textContent = `TIME LEFT 00:${String(seconds).padStart(2, '0')}`;
+      panel.querySelector('#wat-time').textContent = `TIME LEFT ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     };
     const pop = () => {
       if (!active) return;
@@ -109,7 +110,7 @@
     };
     const start = () => {
       hits = 0;
-      seconds = 20;
+      seconds = GAME_SECONDS;
       active = true;
       panel.hidden = false;
       panel.querySelector('#wat-target').textContent = `NOW WHACKING: ${document.querySelector('#now-playing')?.textContent || 'current song'}`;
