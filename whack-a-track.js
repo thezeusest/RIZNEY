@@ -3,7 +3,7 @@
   "use strict";
 
   const STARTING_HEALTH = 12;
-  const youtube = () => window.rizneyPlayer || null;
+  const youtube = () => window.rizneyPlayer || window.player || null;
   let game;
   let active = false;
   let hits = 0;
@@ -59,7 +59,9 @@
     }
 
     $("#wat-close", panel).addEventListener("click", closeGame);
-    ( $("main") || document.body ).appendChild(panel);
+    // Put the game immediately below the media player, not at the bottom of main.
+    const playerDock = document.querySelector(".player-dock");
+    (playerDock || $("main") || document.body).insertAdjacentElement("afterend", panel);
     panel.hidden = true;
     game = { panel, board, status: $("#wat-status", panel) };
     return game;
@@ -90,15 +92,19 @@
   function startGame(event) {
     event?.preventDefault();
     event?.stopImmediatePropagation();
+
+    game = createGame();
+    clearTimeout(moleTimer);
+    clearTimeout(hideTimer);
+
     if (!playing()) {
-      game = createGame();
+      active = false;
       game.status.textContent = "Start a song first, then whack it!";
       game.panel.hidden = false;
       game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    game = createGame();
-    clearTimeout(moleTimer);
+
     hits = 0;
     active = true;
     game.panel.hidden = false;
@@ -114,7 +120,13 @@
     clearTimeout(moleTimer);
     clearTimeout(hideTimer);
     hideMoles();
-    game.status.textContent = won ? "💥 TRACK WHACKED!" : "The track survived.";
+    game.status.textContent = won ? "💥 TRACK WHACKED! Moving to the next track…" : "The track survived.";
+
+    if (won) {
+      // The playlist owns removal and advancing. The event keeps this game
+      // independent from the player's private variables.
+      window.dispatchEvent(new CustomEvent("rizney:track-whacked"));
+    }
   }
 
   function closeGame() {
@@ -131,6 +143,7 @@
     const button = document.querySelector("#whack-track");
     if (!button || button.dataset.whackGameBound === "true") return;
     button.dataset.whackGameBound = "true";
+    // Capture phase prevents the old menu/random-song handler from running.
     button.addEventListener("click", startGame, true);
   }
 
