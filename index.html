@@ -10,7 +10,7 @@
     :root {
       --black: #000;
       --panel: #120b18;
-      --panel-2: #1d1028;
+      --panel-2: #1d10228;
       --purple: #c084fc;
       --bright-purple: #e0aaff;
       --gold: #d4af37;
@@ -663,6 +663,8 @@
     const cards = document.querySelector("#cards");
     const previousButton = document.querySelector("#previous-song");
     const nextButton = document.querySelector("#next-song");
+    const randomButton = document.querySelector("#random-song");
+    const whackButton = document.querySelector("#whack-track");
 
     let player = null;
     let currentIndex = 0;
@@ -671,6 +673,24 @@
 
     function titleFor(index) {
       return `Song ${index + 1}`;
+    }
+
+    function pickRandomIndex() {
+      return Math.floor(Math.random() * ids.length);
+    }
+
+    function chooseRandomSong() {
+      cardPlaylist = null;
+      cardPosition = 0;
+      play(pickRandomIndex());
+    }
+
+    function chooseWhackSong() {
+      cardPlaylist = null;
+      cardPosition = 0;
+      const index = pickRandomIndex();
+      nowPlaying.textContent = `Whack-a-Track: ${titleFor(index)}`;
+      play(index);
     }
 
     function updateButtons() {
@@ -844,19 +864,8 @@
       list.appendChild(row);
     });
 
-    document.querySelector("#random-song").addEventListener("click", () => {
-      cardPlaylist = null;
-      cardPosition = 0;
-      const randomIndex = Math.floor(Math.random() * ids.length);
-      play(randomIndex);
-    });
-
-    document.querySelector("#whack-track").addEventListener("click", () => {
-      cardPlaylist = null;
-      cardPosition = 0;
-      const randomIndex = Math.floor(Math.random() * ids.length);
-      play(randomIndex);
-    });
+    randomButton.addEventListener("click", chooseRandomSong);
+    whackButton.addEventListener("click", chooseWhackSong);
 
     document.querySelector("#previous-song").addEventListener("click", playPrevious);
     document.querySelector("#next-song").addEventListener("click", playNext);
