@@ -385,13 +385,6 @@
 
 <body>
 
-  <!--
-    NORMAL TOP OF PAGE
-
-    This section scrolls away.
-    The Donate button is NOT sticky.
-  -->
-
   <section class="top-area">
 
     <a
@@ -411,16 +404,6 @@
 
   </section>
 
-
-  <!--
-    STICKY PLAYER
-
-    When the visitor scrolls down,
-    this section catches the top of
-    the screen and visually covers
-    what is underneath it.
-  -->
-
   <section class="player-dock">
 
     <div class="player-wrap">
@@ -432,12 +415,6 @@
     </div>
 
   </section>
-
-
-  <!--
-    THESE CONTROLS ARE NOT STICKY.
-    They scroll away normally.
-  -->
 
   <nav class="controls" aria-label="Music controls">
 
@@ -459,13 +436,11 @@
 
   </nav>
 
-
   <main>
 
     <p class="intro">
       Browse the collection in order, or let the cards choose a song for you.
     </p>
-
 
     <section id="reading" hidden>
 
@@ -474,7 +449,6 @@
       <div id="cards"></div>
 
     </section>
-
 
     <section>
 
@@ -486,19 +460,9 @@
 
   </main>
 
-
-  <!--
-    YOUTUBE IFRAME API
-  -->
-
   <script src="https://www.youtube.com/iframe_api"></script>
 
-
   <script>
-
-    /* =========================================================
-       SONG COLLECTION
-       ========================================================= */
 
     const songs = [
 
@@ -532,7 +496,6 @@
       'https://youtu.be/vKmHvqGr2pI',
       'https://youtube.com/shorts/bcfu5SlUkv8',
       'https://youtube.com/shorts/-BeapYF5MTs',
-
       'https://youtube.com/shorts/r9wvi-TAZlc',
       'https://youtube.com/shorts/ojJ9ZS2K1To',
       'https://youtube.com/shorts/nSog7wdCuzM',
@@ -682,11 +645,6 @@
       'https://youtu.be/jgSv8g5bxT8'
     ];
 
-
-    /* =========================================================
-       GET YOUTUBE VIDEO IDS
-       ========================================================= */
-
     const ids = songs
       .map(url =>
         url.match(
@@ -695,57 +653,21 @@
       )
       .filter(Boolean);
 
-
-    /* =========================================================
-       PAGE ELEMENTS
-       ========================================================= */
-
-    const nowPlaying =
-      document.querySelector("#now-playing");
-
-    const list =
-      document.querySelector("#song-list");
-
-    const reading =
-      document.querySelector("#reading");
-
-    const cards =
-      document.querySelector("#cards");
-
-    const previousButton =
-      document.querySelector("#previous-song");
-
-    const nextButton =
-      document.querySelector("#next-song");
-
-
-    /* =========================================================
-       PLAYBACK STATE
-       ========================================================= */
+    const nowPlaying = document.querySelector("#now-playing");
+    const list = document.querySelector("#song-list");
+    const reading = document.querySelector("#reading");
+    const cards = document.querySelector("#cards");
+    const previousButton = document.querySelector("#previous-song");
+    const nextButton = document.querySelector("#next-song");
 
     let player = null;
-
     let currentIndex = 0;
-
-    /*
-      null = normal chronological mode
-
-      array = six-card playlist mode
-    */
-
     let cardPlaylist = null;
-
     let cardPosition = 0;
-
-
-    /* =========================================================
-       TITLES
-       ========================================================= */
 
     function titleFor(index) {
       return `Song ${index + 1}`;
     }
-
 
     function updateButtons() {
       previousButton.disabled =
@@ -759,11 +681,6 @@
           : cardPosition >= cardPlaylist.length - 1;
     }
 
-
-    /* =========================================================
-       PLAY A SONG
-       ========================================================= */
-
     function play(index, autoplay = true) {
 
       if (!ids[index]) return;
@@ -776,17 +693,13 @@
       if (!player) return;
 
       if (autoplay) {
-
         player.loadVideoById({
           videoId: ids[index]
         });
-
       } else {
-
         player.cueVideoById({
           videoId: ids[index]
         });
-
       }
 
       updateButtons();
@@ -796,7 +709,6 @@
         behavior: "smooth"
       });
     }
-
 
     function playPlaylistPosition(position) {
       if (!cardPlaylist || !cardPlaylist[position]) return;
@@ -821,7 +733,6 @@
       });
     }
 
-
     function playPrevious() {
       if (cardPlaylist !== null) {
         if (cardPosition > 0) {
@@ -835,12 +746,7 @@
       }
     }
 
-
     function playNext() {
-
-      /*
-        SIX-CARD MODE
-      */
 
       if (cardPlaylist !== null) {
 
@@ -859,90 +765,49 @@
         return;
       }
 
-
-      /*
-        NORMAL CHRONOLOGICAL MODE
-      */
-
       const nextIndex = currentIndex + 1;
 
       if (nextIndex < ids.length) {
-
         play(nextIndex);
-
       } else {
-
         nowPlaying.textContent =
           "You reached the end of the collection ✦";
-
       }
 
       updateButtons();
     }
 
-
-    /* =========================================================
-       YOUTUBE PLAYER API
-       ========================================================= */
-
     window.onYouTubeIframeAPIReady = function () {
 
       player = new YT.Player("player", {
-
         videoId: ids[0],
-
         playerVars: {
           autoplay: 0,
           rel: 0,
           modestbranding: 1,
           playsinline: 1
         },
-
         events: {
-
           onReady: function () {
-
             nowPlaying.textContent =
               `Now playing: ${titleFor(0)}`;
-
+            window.rizneyPlayer = player;
             updateButtons();
-
           },
-
           onStateChange: function (event) {
-
-            /*
-              YT.PlayerState.ENDED = 0
-
-              When a song finishes,
-              automatically determine
-              what comes next.
-            */
-
             if (event.data === YT.PlayerState.ENDED) {
-
               playNext();
-
             }
-
           }
-
         }
-
       });
 
+      window.rizneyPlayer = player;
     };
-
-
-    /* =========================================================
-       BUILD SONG LIST
-       ========================================================= */
 
     ids.forEach((id, index) => {
 
-      const row =
-        document.createElement("article");
-
+      const row = document.createElement("article");
       row.className = "song";
 
       row.innerHTML = `
@@ -966,132 +831,53 @@
         </button>
       `;
 
-      row
-        .querySelector("button")
-        .addEventListener("click", () => {
-
-          /*
-            Clicking a normal song
-            exits six-card mode.
-          */
-
-          cardPlaylist = null;
-          cardPosition = 0;
-
-          play(index);
-
-        });
-
-      list.appendChild(row);
-
-    });
-
-
-    /* =========================================================
-       RANDOM SONG
-       ========================================================= */
-
-    document
-      .querySelector("#random-song")
-      .addEventListener("click", () => {
-
-        /*
-          Random starts a normal chronological
-          sequence from the randomly chosen song.
-        */
-
+      row.querySelector("button").addEventListener("click", () => {
         cardPlaylist = null;
         cardPosition = 0;
-
-        const randomIndex = Math.floor(Math.random() * ids.length);
-
-        play(randomIndex);
-
+        play(index);
       });
 
-    document
-      .querySelector("#previous-song")
-      .addEventListener("click", playPrevious);
+      list.appendChild(row);
+    });
 
-    document
-      .querySelector("#next-song")
-      .addEventListener("click", playNext);
+    document.querySelector("#random-song").addEventListener("click", () => {
+      cardPlaylist = null;
+      cardPosition = 0;
+      const randomIndex = Math.floor(Math.random() * ids.length);
+      play(randomIndex);
+    });
 
-    document
-      .querySelector("#draw-cards")
-      .addEventListener("click", () => {
+    document.querySelector("#previous-song").addEventListener("click", playPrevious);
+    document.querySelector("#next-song").addEventListener("click", playNext);
 
-        /*
-          Pick six different songs.
-        */
+    document.querySelector("#draw-cards").addEventListener("click", () => {
+      const chosen = [...ids.keys()].sort(() => Math.random() - 0.5).slice(0, Math.min(6, ids.length));
+      cardPlaylist = chosen;
+      cardPosition = 0;
 
-        const chosen =
-          [...ids.keys()]
-            .sort(() => Math.random() - 0.5)
-            .slice(0, Math.min(6, ids.length));
+      cards.innerHTML = "";
+      const symbols = ["✦", "✧", "✩", "✹", "✺", "✷"];
 
-        /*
-          Save the exact order.
+      chosen.forEach((index, position) => {
+        const card = document.createElement("article");
+        card.className = "card";
 
-          The player will use this same order
-          when each song finishes.
-        */
+        card.innerHTML = `
+          <span class="symbol">${symbols[position]}</span>
+          <strong>Reading ${position + 1}</strong>
+          <a href="#" data-index="${index}">Play song ${index + 1}</a>
+        `;
 
-        cardPlaylist = chosen;
-        cardPosition = 0;
-
-        /*
-          Clear previous reading.
-        */
-
-        cards.innerHTML = "";
-
-        const symbols = ["✦", "✧", "✩", "✹", "✺", "✷"];
-
-        chosen.forEach((index, position) => {
-
-          const card =
-            document.createElement("article");
-
-          card.className = "card";
-
-          card.innerHTML = `
-            <span class="symbol">
-              ${symbols[position]}
-            </span>
-            <strong>
-              ${titleFor(index)}
-            </strong>
-            <a href="#" aria-label="Play ${titleFor(index)}">
-              Reveal & play
-            </a>
-          `;
-
-          card
-            .querySelector("a")
-            .addEventListener("click", event => {
-              event.preventDefault();
-              playPlaylistPosition(position);
-            });
-
-          cards.appendChild(card);
-
+        card.querySelector("a").addEventListener("click", event => {
+          event.preventDefault();
+          playPlaylistPosition(position);
         });
 
-        reading.hidden = false;
-
-        if (chosen.length > 0) {
-          playPlaylistPosition(0);
-          reading.scrollIntoView({ behavior: "smooth" });
-        }
-
+        cards.appendChild(card);
       });
-
-    updateButtons();
+    });
 
   </script>
-
-  <script src="./whack-a-track.js"></script>
 
 </body>
 </html>
