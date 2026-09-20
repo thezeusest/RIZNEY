@@ -33,10 +33,6 @@
       font-family: Georgia, "Times New Roman", serif;
     }
 
-    /* ------------------------------
-       TOP OF PAGE
-    ------------------------------ */
-
     .top-area {
       position: relative;
       padding: 10px 14px 18px;
@@ -48,18 +44,13 @@
       position: absolute;
       top: 10px;
       left: 10px;
-
       border: 1px solid var(--gold);
       border-radius: 999px;
-
       padding: 5px 9px;
-
       color: var(--bright-gold);
       background: #160c1c;
-
       font-size: .68rem;
       text-decoration: none;
-
       z-index: 5;
     }
 
@@ -80,23 +71,13 @@
       font-size: .78rem;
     }
 
-    /* ------------------------------
-       STICKY MEDIA PLAYER
-       This is the part that catches
-       the top of the screen while
-       the rest of the page scrolls.
-    ------------------------------ */
-
     .player-dock {
       position: sticky;
       top: 0;
       z-index: 100;
-
       background: rgba(0, 0, 0, .98);
-
       border-top: 1px solid var(--gold);
       border-bottom: 1px solid var(--gold);
-
       box-shadow:
         0 7px 28px rgba(0, 0, 0, .9),
         0 2px 18px rgba(212, 175, 55, .18);
@@ -106,9 +87,7 @@
       width: 100%;
       max-width: 720px;
       margin: auto;
-
       aspect-ratio: 16 / 9;
-
       background: #090509;
     }
 
@@ -121,30 +100,22 @@
 
     #now-playing {
       padding: 7px 10px 8px;
-
       color: var(--bright-purple);
       background: #050305;
-
       font-size: .85rem;
       text-align: center;
-
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    /* ------------------------------
-       CONTROLS
-    ------------------------------ */
 
     .controls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
-
+      align-items: center;
       padding: 10px 8px 12px;
-
       background: #000;
       border-bottom: 1px solid #3b1d50;
     }
@@ -152,28 +123,33 @@
     button {
       border: 1px solid var(--gold);
       border-radius: 999px;
-
       padding: 9px 12px;
-
       color: #fff;
       background: #55208a;
-
       font: inherit;
       font-size: .82rem;
-
       cursor: pointer;
+      transition: background-color .18s ease, transform .12s ease;
     }
 
     button:hover {
       background: #7e35bc;
     }
 
+    button:active {
+      transform: translateY(1px);
+    }
+
     .skip {
-      min-width: 46px;
-      width: 46px;
-      padding: 9px 0;
+      min-width: 42px;
+      width: 42px;
+      height: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       line-height: 1;
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
       text-align: center;
     }
@@ -186,10 +162,6 @@
     .skip[disabled]:hover {
       background: #55208a;
     }
-
-    /* ------------------------------
-       MAIN CONTENT
-    ------------------------------ */
 
     main {
       width: min(100% - 24px, 900px);
@@ -206,15 +178,9 @@
     h2 {
       color: var(--bright-gold);
       font-size: 1.25rem;
-
       border-bottom: 1px solid var(--gold);
-
       padding-bottom: 8px;
     }
-
-    /* ------------------------------
-       SIX CARD READING
-    ------------------------------ */
 
     #cards {
       display: grid;
@@ -226,19 +192,13 @@
     .card {
       min-height: 150px;
       padding: 9px 6px;
-
       color: var(--bright-purple);
-
-      background:
-        linear-gradient(145deg, #21102e, #090509);
-
+      background: linear-gradient(145deg, #21102e, #090509);
       border: 2px solid var(--gold);
       border-radius: 12px;
-
       box-shadow:
         inset 0 0 0 2px rgba(212,175,55,.15),
         0 0 14px rgba(212,175,55,.13);
-
       text-align: center;
     }
 
@@ -260,10 +220,6 @@
       font-size: .7rem;
     }
 
-    /* ------------------------------
-       SONG LIST
-    ------------------------------ */
-
     #song-list {
       display: grid;
       gap: 8px;
@@ -271,21 +227,13 @@
 
     .song {
       display: grid;
-
       grid-template-columns: 38px 1fr auto;
-
       align-items: center;
-
       gap: 10px;
-
       padding: 10px;
-
       color: var(--purple);
-
       background: var(--panel);
-
       border: 1px solid #3b1d50;
-
       border-radius: 8px;
     }
 
@@ -302,13 +250,9 @@
 
     .song small {
       display: block;
-
       color: var(--muted);
-
       font-family: sans-serif;
-
       font-size: .7rem;
-
       margin-top: 3px;
     }
 
@@ -323,12 +267,7 @@
       padding: 20px;
     }
 
-    /* ------------------------------
-       MOBILE
-    ------------------------------ */
-
     @media (min-width: 700px) {
-
       .player-wrap {
         max-width: 620px;
       }
@@ -339,7 +278,6 @@
     }
 
     @media (max-width: 500px) {
-
       .top-area {
         padding-top: 42px;
       }
@@ -367,9 +305,10 @@
       }
 
       .skip {
-        min-width: 40px;
-        width: 40px;
-        font-size: 1.1rem;
+        width: 38px;
+        min-width: 38px;
+        height: 34px;
+        font-size: 1.05rem;
       }
 
       .card {
@@ -394,13 +333,7 @@
 <body>
 
   <section class="top-area">
-
-    <a
-      class="donate"
-      href="https://venmo.com/u/YOUR_VENMO_USERNAME"
-      target="_blank"
-      rel="noopener"
-    >
+    <a class="donate" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" rel="noopener">
       ♥ Donate
     </a>
 
@@ -409,11 +342,9 @@
     <div class="tagline">
       Mix'N'Mojo
     </div>
-
   </section>
 
   <section class="player-dock">
-
     <div class="player-wrap">
       <div id="player"></div>
     </div>
@@ -421,11 +352,9 @@
     <div id="now-playing">
       Now playing: Mega MIX'N'MOJO Intro
     </div>
-
   </section>
 
   <nav class="controls" aria-label="Music controls">
-
     <button id="previous-song" class="skip" type="button" aria-label="Previous song">
       «
     </button>
@@ -445,39 +374,28 @@
     <button id="next-song" class="skip" type="button" aria-label="Next song">
       »
     </button>
-
   </nav>
 
   <main>
-
     <p class="intro">
       Browse the collection in order, or let the cards choose a song for you.
     </p>
 
     <section id="reading" hidden>
-
       <h2>Your Music Reading</h2>
-
       <div id="cards"></div>
-
     </section>
 
     <section>
-
       <h2>Chronological Collection</h2>
-
       <div id="song-list"></div>
-
     </section>
-
   </main>
 
   <script src="https://www.youtube.com/iframe_api"></script>
 
   <script>
-
     const songs = [
-
       'https://youtube.com/shorts/mkKOtZPLkzY',
       'https://youtu.be/K2Dujl_bFZg',
       'https://youtu.be/9lMRH8Q47KU',
@@ -657,22 +575,17 @@
       'https://youtu.be/jgSv8g5bxT8'
     ];
 
-    const ids = songs
-      .map(url =>
-        url.match(
-          /(?:youtu\.be\/|shorts\/|watch\?v=)([^?&/]+)/
-        )?.[1]
-      )
-      .filter(Boolean);
+    const ids = songs.map(url =>
+      url.match(/(?:youtu\.be\/|shorts\/|watch\?v=)([^?&/]+)/)?.[1]
+    ).filter(Boolean);
 
-    const nowPlaying = document.querySelector("#now-playing");
-    const list = document.querySelector("#song-list");
-    const reading = document.querySelector("#reading");
-    const cards = document.querySelector("#cards");
-    const previousButton = document.querySelector("#previous-song");
-    const nextButton = document.querySelector("#next-song");
-    const randomButton = document.querySelector("#random-song");
-    const whackButton = document.querySelector("#whack-track");
+    const nowPlaying = document.querySelector('#now-playing');
+    const list = document.querySelector('#song-list');
+    const cards = document.querySelector('#cards');
+    const previousButton = document.querySelector('#previous-song');
+    const nextButton = document.querySelector('#next-song');
+    const randomButton = document.querySelector('#random-song');
+    const whackButton = document.querySelector('#whack-track');
 
     let player = null;
     let currentIndex = 0;
@@ -702,44 +615,26 @@
     }
 
     function updateButtons() {
-      previousButton.disabled =
-        cardPlaylist === null
-          ? currentIndex <= 0
-          : cardPosition <= 0;
-
-      nextButton.disabled =
-        cardPlaylist === null
-          ? currentIndex >= ids.length - 1
-          : cardPosition >= cardPlaylist.length - 1;
+      previousButton.disabled = cardPlaylist === null ? currentIndex <= 0 : cardPosition <= 0;
+      nextButton.disabled = cardPlaylist === null ? currentIndex >= ids.length - 1 : cardPosition >= cardPlaylist.length - 1;
     }
 
     function play(index, autoplay = true) {
-
       if (!ids[index]) return;
 
       currentIndex = index;
-
-      nowPlaying.textContent =
-        `Now playing: ${titleFor(index)}`;
+      nowPlaying.textContent = `Now playing: ${titleFor(index)}`;
 
       if (!player) return;
 
       if (autoplay) {
-        player.loadVideoById({
-          videoId: ids[index]
-        });
+        player.loadVideoById({ videoId: ids[index] });
       } else {
-        player.cueVideoById({
-          videoId: ids[index]
-        });
+        player.cueVideoById({ videoId: ids[index] });
       }
 
       updateButtons();
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function playPlaylistPosition(position) {
@@ -747,71 +642,51 @@
 
       cardPosition = position;
       currentIndex = cardPlaylist[position];
-
-      nowPlaying.textContent =
-        `Reading ${position + 1} of 6: ${titleFor(currentIndex)}`;
+      nowPlaying.textContent = `Reading ${position + 1} of 6: ${titleFor(currentIndex)}`;
 
       if (player) {
-        player.loadVideoById({
-          videoId: ids[currentIndex]
-        });
+        player.loadVideoById({ videoId: ids[currentIndex] });
       }
 
       updateButtons();
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function playPrevious() {
       if (cardPlaylist !== null) {
-        if (cardPosition > 0) {
-          playPlaylistPosition(cardPosition - 1);
-        }
+        if (cardPosition > 0) playPlaylistPosition(cardPosition - 1);
         return;
       }
 
-      if (currentIndex > 0) {
-        play(currentIndex - 1);
-      }
+      if (currentIndex > 0) play(currentIndex - 1);
     }
 
     function playNext() {
-
       if (cardPlaylist !== null) {
-
         if (cardPosition < cardPlaylist.length - 1) {
           playPlaylistPosition(cardPosition + 1);
           return;
         }
 
-        nowPlaying.textContent =
-          "Music reading complete ✦";
-
+        nowPlaying.textContent = 'Music reading complete ✦';
         cardPlaylist = null;
         cardPosition = 0;
         updateButtons();
-
         return;
       }
 
       const nextIndex = currentIndex + 1;
-
       if (nextIndex < ids.length) {
         play(nextIndex);
       } else {
-        nowPlaying.textContent =
-          "You reached the end of the collection ✦";
+        nowPlaying.textContent = 'You reached the end of the collection ✦';
       }
 
       updateButtons();
     }
 
     window.onYouTubeIframeAPIReady = function () {
-
-      player = new YT.Player("player", {
+      player = new YT.Player('player', {
         videoId: ids[0],
         playerVars: {
           autoplay: 0,
@@ -821,8 +696,7 @@
         },
         events: {
           onReady: function () {
-            nowPlaying.textContent =
-              `Now playing: ${titleFor(0)}`;
+            nowPlaying.textContent = `Now playing: ${titleFor(0)}`;
             window.rizneyPlayer = player;
             updateButtons();
           },
@@ -838,32 +712,19 @@
     };
 
     ids.forEach((id, index) => {
-
-      const row = document.createElement("article");
-      row.className = "song";
+      const row = document.createElement('article');
+      row.className = 'song';
 
       row.innerHTML = `
-        <span class="song-number">
-          ${index + 1}
-        </span>
-
+        <span class="song-number">${index + 1}</span>
         <span class="song-title">
           ♫ ${titleFor(index)}
-
-          <small>
-            YouTube video • chronological position ${index + 1}
-          </small>
+          <small>YouTube video • chronological position ${index + 1}</small>
         </span>
-
-        <button
-          class="play"
-          type="button"
-        >
-          Play
-        </button>
+        <button class="play" type="button">Play</button>
       `;
 
-      row.querySelector("button").addEventListener("click", () => {
+      row.querySelector('button').addEventListener('click', () => {
         cardPlaylist = null;
         cardPosition = 0;
         play(index);
@@ -872,23 +733,22 @@
       list.appendChild(row);
     });
 
-    randomButton.addEventListener("click", chooseRandomSong);
-    whackButton.addEventListener("click", chooseWhackSong);
+    randomButton.addEventListener('click', chooseRandomSong);
+    whackButton.addEventListener('click', chooseWhackSong);
+    previousButton.addEventListener('click', playPrevious);
+    nextButton.addEventListener('click', playNext);
 
-    document.querySelector("#previous-song").addEventListener("click", playPrevious);
-    document.querySelector("#next-song").addEventListener("click", playNext);
-
-    document.querySelector("#draw-cards").addEventListener("click", () => {
+    document.querySelector('#draw-cards').addEventListener('click', () => {
       const chosen = [...ids.keys()].sort(() => Math.random() - 0.5).slice(0, Math.min(6, ids.length));
       cardPlaylist = chosen;
       cardPosition = 0;
 
-      cards.innerHTML = "";
-      const symbols = ["✦", "✧", "✩", "✹", "✺", "✷"];
+      cards.innerHTML = '';
+      const symbols = ['✦', '✧', '✩', '✹', '✺', '✷'];
 
       chosen.forEach((index, position) => {
-        const card = document.createElement("article");
-        card.className = "card";
+        const card = document.createElement('article');
+        card.className = 'card';
 
         card.innerHTML = `
           <span class="symbol">${symbols[position]}</span>
@@ -896,7 +756,7 @@
           <a href="#" data-index="${index}">Play song ${index + 1}</a>
         `;
 
-        card.querySelector("a").addEventListener("click", event => {
+        card.querySelector('a').addEventListener('click', event => {
           event.preventDefault();
           playPlaylistPosition(position);
         });
@@ -904,7 +764,6 @@
         cards.appendChild(card);
       });
     });
-
   </script>
 
 </body>
