@@ -1003,8 +1003,7 @@
         cardPlaylist = null;
         cardPosition = 0;
 
-        const randomIndex =
-          Math.floor(Math.random() * ids.length);
+        const randomIndex = Math.floor(Math.random() * ids.length);
 
         play(randomIndex);
 
@@ -1017,11 +1016,6 @@
     document
       .querySelector("#next-song")
       .addEventListener("click", playNext);
-
-
-    /* =========================================================
-       DRAW SIX CARDS
-       ========================================================= */
 
     document
       .querySelector("#draw-cards")
@@ -1052,7 +1046,7 @@
 
         cards.innerHTML = "";
 
-        const symbols = ["☾", "✦", "☉", "♢", "✧", "✺"];
+        const symbols = ["✦", "✧", "✩", "✹", "✺", "✷"];
 
         chosen.forEach((index, position) => {
 
@@ -1065,13 +1059,11 @@
             <span class="symbol">
               ${symbols[position]}
             </span>
-
             <strong>
               ${titleFor(index)}
             </strong>
-
             <a href="#" aria-label="Play ${titleFor(index)}">
-              Reveal &amp; play
+              Reveal & play
             </a>
           `;
 
@@ -1098,6 +1090,8 @@
     updateButtons();
 
   </script>
+
+  <script src="./whack-a-track.js"></script>
 
 </body>
 </html>
