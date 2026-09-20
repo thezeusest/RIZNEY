@@ -10,7 +10,7 @@
     :root {
       --black: #000;
       --panel: #120b18;
-      --panel-2: #1d10228;
+      --panel-2: #1d1028;
       --purple: #c084fc;
       --bright-purple: #e0aaff;
       --gold: #d4af37;
@@ -169,7 +169,13 @@
     }
 
     .skip {
-      min-width: 86px;
+      min-width: 46px;
+      width: 46px;
+      padding: 9px 0;
+      line-height: 1;
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
     }
 
     .skip[disabled] {
@@ -361,7 +367,9 @@
       }
 
       .skip {
-        min-width: 0;
+        min-width: 40px;
+        width: 40px;
+        font-size: 1.1rem;
       }
 
       .card {
@@ -419,7 +427,7 @@
   <nav class="controls" aria-label="Music controls">
 
     <button id="previous-song" class="skip" type="button" aria-label="Previous song">
-      « Previous
+      «
     </button>
 
     <button id="random-song" type="button">
@@ -435,7 +443,7 @@
     </button>
 
     <button id="next-song" class="skip" type="button" aria-label="Next song">
-      Next »
+      »
     </button>
 
   </nav>
