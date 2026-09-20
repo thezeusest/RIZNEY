@@ -3,81 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Rizney Music Archive</title>
+
   <style>
     :root {
       --black: #000;
       --panel: #120b18;
+      --panel-2: #1d1028;
       --purple: #c084fc;
       --bright-purple: #e0aaff;
       --gold: #d4af37;
       --bright-gold: #f5d76e;
       --muted: #b9a8c5;
-      --danger: #ff5b5b;
-      --darker: #090509;
     }
 
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      background: var(--black);
       color: var(--purple);
+      background: var(--black);
       font-family: Georgia, "Times New Roman", serif;
     }
 
+    /* ------------------------------
+       TOP OF PAGE
+    ------------------------------ */
+
     .top-area {
       position: relative;
-      padding: 12px 14px 18px;
+      padding: 10px 14px 18px;
       text-align: center;
       background: #000;
     }
 
-    .top-actions {
+    .donate {
       position: absolute;
       top: 10px;
-      right: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      left: 10px;
+
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+
+      padding: 5px 9px;
+
+      color: var(--bright-gold);
+      background: #160c1c;
+
+      font-size: .68rem;
+      text-decoration: none;
+
       z-index: 5;
     }
 
-    .donate,
-    button {
-      border: 1px solid var(--gold);
-      border-radius: 999px;
-      cursor: pointer;
-      font: inherit;
-    }
-
-    .donate {
-      background: #160c1c;
-      color: var(--bright-gold);
-      padding: 5px 9px;
-      text-decoration: none;
-      font-size: .68rem;
-      display: inline-block;
-    }
-
-    .donate:hover,
-    button:hover {
-      background: #7e35bc;
-    }
-
-    .whack-button {
+    .donate:hover {
       background: #55208a;
-      color: #fff;
-      padding: 6px 10px;
-      font-size: .68rem;
-      box-shadow: 0 0 12px rgba(212, 175, 55, .14);
     }
 
     h1 {
       margin: 4px 0 0;
       color: var(--bright-gold);
-      letter-spacing: .08em;
       font-size: 1.55rem;
+      letter-spacing: .08em;
     }
 
     .tagline {
@@ -86,21 +80,35 @@
       font-size: .78rem;
     }
 
+    /* ------------------------------
+       STICKY MEDIA PLAYER
+       This is the part that catches
+       the top of the screen while
+       the rest of the page scrolls.
+    ------------------------------ */
+
     .player-dock {
       position: sticky;
       top: 0;
       z-index: 100;
+
       background: rgba(0, 0, 0, .98);
+
       border-top: 1px solid var(--gold);
       border-bottom: 1px solid var(--gold);
-      box-shadow: 0 7px 28px rgba(0,0,0,.9), 0 2px 18px rgba(212,175,55,.18);
+
+      box-shadow:
+        0 7px 28px rgba(0, 0, 0, .9),
+        0 2px 18px rgba(212, 175, 55, .18);
     }
 
     .player-wrap {
       width: 100%;
       max-width: 720px;
       margin: auto;
+
       aspect-ratio: 16 / 9;
+
       background: #090509;
     }
 
@@ -113,37 +121,69 @@
 
     #now-playing {
       padding: 7px 10px 8px;
-      text-align: center;
+
       color: var(--bright-purple);
       background: #050305;
+
       font-size: .85rem;
+      text-align: center;
+
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    /* ------------------------------
+       CONTROLS
+    ------------------------------ */
 
     .controls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
+
       padding: 10px 8px 12px;
+
       background: #000;
       border-bottom: 1px solid #3b1d50;
     }
 
     button {
-      background: #55208a;
-      color: #fff;
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+
       padding: 9px 12px;
+
+      color: #fff;
+      background: #55208a;
+
+      font: inherit;
       font-size: .82rem;
+
+      cursor: pointer;
     }
 
-    .skip { min-width: 86px; }
+    button:hover {
+      background: #7e35bc;
+    }
+
+    .skip {
+      min-width: 86px;
+    }
+
     .skip[disabled] {
       opacity: .45;
       cursor: not-allowed;
     }
+
+    .skip[disabled]:hover {
+      background: #55208a;
+    }
+
+    /* ------------------------------
+       MAIN CONTENT
+    ------------------------------ */
 
     main {
       width: min(100% - 24px, 900px);
@@ -160,25 +200,86 @@
     h2 {
       color: var(--bright-gold);
       font-size: 1.25rem;
+
       border-bottom: 1px solid var(--gold);
+
       padding-bottom: 8px;
     }
+
+    /* ------------------------------
+       SIX CARD READING
+    ------------------------------ */
+
+    #cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      margin: 12px 0 22px;
+    }
+
+    .card {
+      min-height: 150px;
+      padding: 9px 6px;
+
+      color: var(--bright-purple);
+
+      background:
+        linear-gradient(145deg, #21102e, #090509);
+
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+
+      box-shadow:
+        inset 0 0 0 2px rgba(212,175,55,.15),
+        0 0 14px rgba(212,175,55,.13);
+
+      text-align: center;
+    }
+
+    .card .symbol {
+      display: block;
+      color: var(--bright-gold);
+      font-size: 1.7rem;
+      margin-bottom: 6px;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: .78rem;
+    }
+
+    .card a {
+      color: var(--bright-gold);
+      font-size: .7rem;
+    }
+
+    /* ------------------------------
+       SONG LIST
+    ------------------------------ */
 
     #song-list {
       display: grid;
       gap: 8px;
-      margin-top: 12px;
     }
 
     .song {
       display: grid;
+
       grid-template-columns: 38px 1fr auto;
+
       align-items: center;
+
       gap: 10px;
+
       padding: 10px;
+
       color: var(--purple);
+
       background: var(--panel);
+
       border: 1px solid #3b1d50;
+
       border-radius: 8px;
     }
 
@@ -195,9 +296,13 @@
 
     .song small {
       display: block;
+
       color: var(--muted);
+
       font-family: sans-serif;
+
       font-size: .7rem;
+
       margin-top: 3px;
     }
 
@@ -206,278 +311,197 @@
       font-size: .78rem;
     }
 
-    .whack-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      padding: 18px;
-    }
-
-    .whack-modal.hidden { display: none; }
-
-    .whack-panel {
-      width: min(92vw, 760px);
-      max-height: 88vh;
-      overflow: auto;
-      background: linear-gradient(180deg, #1c1028, #090509);
-      border: 2px solid var(--gold);
-      border-radius: 18px;
-      box-shadow: 0 0 28px rgba(212,175,55,.2);
-      padding: 18px 18px 16px;
-      color: var(--bright-purple);
-    }
-
-    .whack-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      border-bottom: 1px solid rgba(212,175,55,.4);
-      padding-bottom: 12px;
-    }
-
-    .whack-header h3 {
-      margin: 0;
-      color: var(--bright-gold);
-      font-size: clamp(1.1rem, 2vw, 1.7rem);
-      letter-spacing: .06em;
-    }
-
-    .whack-close {
-      background: #160c1c;
-      color: var(--bright-gold);
-      border: 1px solid var(--gold);
-      padding: 7px 10px;
-      font-size: .76rem;
-    }
-
-    .whack-status-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-
-    #whack-song-name {
-      color: var(--bright-gold);
-      font-size: .9rem;
-      letter-spacing: .04em;
-    }
-
-    #whack-health-text {
+    .empty {
       color: var(--muted);
-      font-size: .75rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .health-wrap {
-      width: 100%;
-      height: 18px;
-      border: 2px solid var(--gold);
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      overflow: hidden;
-      margin-bottom: 12px;
-      box-shadow: inset 0 0 12px rgba(0,0,0,.5);
-    }
-
-    .health-fill {
-      height: 100%;
-      width: 100%;
-      background: linear-gradient(90deg, #4ade80 0%, #facc15 50%, #ef4444 100%);
-      transition: width .15s ease;
-      border-radius: 999px;
-    }
-
-    .whack-message {
-      min-height: 54px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 12px;
       text-align: center;
-      color: var(--bright-gold);
-      font-size: .98rem;
-      line-height: 1.5;
-      white-space: pre-line;
-      letter-spacing: .04em;
-      font-weight: 700;
+      padding: 20px;
     }
 
-    .whack-message.survived { color: var(--bright-purple); }
+    /* ------------------------------
+       MOBILE
+    ------------------------------ */
 
-    .whack-moles {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(90px, 1fr));
-      gap: 12px;
-      margin: 12px 0 16px;
+    @media (min-width: 700px) {
+
+      .player-wrap {
+        max-width: 620px;
+      }
+
+      .song {
+        grid-template-columns: 45px 1fr auto;
+      }
     }
-
-    .mole-hole {
-      position: relative;
-      min-height: 110px;
-      border-radius: 18px;
-      border: 3px solid rgba(212,175,55,.8);
-      background: linear-gradient(180deg, #1d1028, #090509);
-      overflow: hidden;
-      padding: 0;
-      cursor: pointer;
-    }
-
-    .mole-hole::before {
-      content: "";
-      position: absolute;
-      left: 12%;
-      right: 12%;
-      bottom: 0;
-      height: 22%;
-      background: rgba(0,0,0,.28);
-      border-radius: 12px 12px 0 0;
-    }
-
-    .mole {
-      position: absolute;
-      left: 50%;
-      bottom: 12%;
-      transform: translate(-50%, 65%) scale(.7);
-      opacity: 0;
-      pointer-events: none;
-      width: 80%;
-      min-height: 54px;
-      border: 4px solid #000;
-      background: linear-gradient(180deg, #ffdb80, #d39c25);
-      color: #000;
-      font-size: .7rem;
-      font-weight: 900;
-      letter-spacing: .12em;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      box-shadow: 0 0 0 4px #7a4d14, 0 8px 0 rgba(0,0,0,.2);
-      border-radius: 8px;
-      font-family: "Courier New", monospace;
-      transition: transform .12s ease, opacity .12s ease;
-    }
-
-    .mole-hole.active .mole {
-      opacity: 1;
-      transform: translate(-50%, 0) scale(1);
-    }
-
-    .whack-actions {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .whack-restore,
-    .whack-stop {
-      background: #160c1c;
-      color: var(--bright-gold);
-      border: 1px solid var(--gold);
-      padding: 8px 12px;
-      font-size: .76rem;
-    }
-
-    .hidden { display: none !important; }
 
     @media (max-width: 500px) {
-      .top-area { padding-top: 42px; }
-      .top-actions { top: 8px; right: 8px; }
-      .donate { top: 8px; left: 8px; }
-      h1 { font-size: 1.35rem; }
-      .player-wrap { aspect-ratio: 16 / 9; }
-      button { font-size: .75rem; padding: 8px 10px; }
-      .skip { min-width: 0; }
-      .whack-panel { padding: 14px 12px 12px; }
-      .whack-moles { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+
+      .top-area {
+        padding-top: 42px;
+      }
+
+      .donate {
+        top: 8px;
+        left: 8px;
+      }
+
+      h1 {
+        font-size: 1.35rem;
+      }
+
+      .player-wrap {
+        aspect-ratio: 16 / 9;
+      }
+
+      .controls {
+        gap: 6px;
+      }
+
+      button {
+        font-size: .75rem;
+        padding: 8px 10px;
+      }
+
+      .skip {
+        min-width: 0;
+      }
+
+      .card {
+        min-height: 130px;
+      }
+
+      .card .symbol {
+        font-size: 1.45rem;
+      }
+
+      .card strong {
+        font-size: .7rem;
+      }
+
+      .card a {
+        font-size: .65rem;
+      }
     }
   </style>
 </head>
+
 <body>
+
+  <!--
+    NORMAL TOP OF PAGE
+
+    This section scrolls away.
+    The Donate button is NOT sticky.
+  -->
+
   <section class="top-area">
-    <div class="top-actions">
-      <a class="donate" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" rel="noopener">♥ Donate</a>
-      <button id="whack-button" class="whack-button" type="button">🎵 WHACK-A-TRACK!</button>
-    </div>
+
+    <a
+      class="donate"
+      href="https://venmo.com/u/YOUR_VENMO_USERNAME"
+      target="_blank"
+      rel="noopener"
+    >
+      ♥ Donate
+    </a>
 
     <h1>✦ WALT RIZNEY ✦</h1>
-    <div class="tagline">Mix'N'Mojo</div>
+
+    <div class="tagline">
+      Mix'N'Mojo
+    </div>
+
   </section>
 
+
+  <!--
+    STICKY PLAYER
+
+    When the visitor scrolls down,
+    this section catches the top of
+    the screen and visually covers
+    what is underneath it.
+  -->
+
   <section class="player-dock">
+
     <div class="player-wrap">
       <div id="player"></div>
     </div>
-    <div id="now-playing">Now playing: Song 1</div>
+
+    <div id="now-playing">
+      Now playing: Mega MIX'N'MOJO Intro
+    </div>
+
   </section>
 
+
+  <!--
+    THESE CONTROLS ARE NOT STICKY.
+    They scroll away normally.
+  -->
+
   <nav class="controls" aria-label="Music controls">
-    <button id="previous-song" class="skip" type="button">« Previous</button>
-    <button id="random-song" type="button">♫ Random</button>
-    <button id="next-song" class="skip" type="button">Next »</button>
+
+    <button id="previous-song" class="skip" type="button" aria-label="Previous song">
+      « Previous
+    </button>
+
+    <button id="random-song" type="button">
+      ♫ Random
+    </button>
+
+    <button id="draw-cards" type="button">
+      ✦ Draw Six
+    </button>
+
+    <button id="next-song" class="skip" type="button" aria-label="Next song">
+      Next »
+    </button>
+
   </nav>
 
+
   <main>
-    <p class="intro">Browse the collection in order, or let the music choose the next one.</p>
-    <section>
-      <h2>Chronological Collection</h2>
-      <div id="song-list"></div>
+
+    <p class="intro">
+      Browse the collection in order, or let the cards choose a song for you.
+    </p>
+
+
+    <section id="reading" hidden>
+
+      <h2>Your Music Reading</h2>
+
+      <div id="cards"></div>
+
     </section>
+
+
+    <section>
+
+      <h2>Chronological Collection</h2>
+
+      <div id="song-list"></div>
+
+    </section>
+
   </main>
 
-  <div id="whack-modal" class="whack-modal hidden" aria-hidden="true">
-    <div class="whack-panel" role="dialog" aria-modal="true" aria-labelledby="whack-title">
-      <div class="whack-header">
-        <h3 id="whack-title">🎵 WHACK-A-TRACK!</h3>
-        <button id="whack-close" class="whack-close" type="button">Return to Music Site</button>
-      </div>
 
-      <div id="whack-game">
-        <div class="whack-status-row">
-          <div id="whack-song-name">Song 1</div>
-          <div id="whack-health-text">Health</div>
-        </div>
-
-        <div class="health-wrap" aria-label="Song health">
-          <div id="health-fill" class="health-fill"></div>
-        </div>
-
-        <div id="whack-message" class="whack-message">Ready to whack!</div>
-
-        <div id="whack-moles" class="whack-moles" aria-label="Whack game board">
-          <button class="mole-hole" type="button" aria-label="Hole 1"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 2"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 3"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 4"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 5"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 6"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 7"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 8"><span class="mole">8-BIT</span></button>
-          <button class="mole-hole" type="button" aria-label="Hole 9"><span class="mole">8-BIT</span></button>
-        </div>
-
-        <div class="whack-actions">
-          <button id="restore-destroyed" class="whack-restore" type="button">Restore Destroyed Songs</button>
-          <button id="whack-stop" class="whack-stop" type="button">Stop Game</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!--
+    YOUTUBE IFRAME API
+  -->
 
   <script src="https://www.youtube.com/iframe_api"></script>
+
+
   <script>
+
+    /* =========================================================
+       SONG COLLECTION
+       ========================================================= */
+
     const songs = [
+
       'https://youtube.com/shorts/mkKOtZPLkzY',
       'https://youtu.be/K2Dujl_bFZg',
       'https://youtu.be/9lMRH8Q47KU',
@@ -508,6 +532,7 @@
       'https://youtu.be/vKmHvqGr2pI',
       'https://youtube.com/shorts/bcfu5SlUkv8',
       'https://youtube.com/shorts/-BeapYF5MTs',
+
       'https://youtube.com/shorts/r9wvi-TAZlc',
       'https://youtube.com/shorts/ojJ9ZS2K1To',
       'https://youtube.com/shorts/nSog7wdCuzM',
@@ -657,337 +682,422 @@
       'https://youtu.be/jgSv8g5bxT8'
     ];
 
-    const ids = songs.map(url => url.match(/(?:youtu\.be\/|shorts\/|watch\?v=)([^?&/]+)/)?.[1]).filter(Boolean);
 
-    const nowPlaying = document.querySelector('#now-playing');
-    const list = document.querySelector('#song-list');
-    const previousButton = document.querySelector('#previous-song');
-    const nextButton = document.querySelector('#next-song');
-    const randomButton = document.querySelector('#random-song');
-    const whackButton = document.querySelector('#whack-button');
-    const whackModal = document.querySelector('#whack-modal');
-    const whackClose = document.querySelector('#whack-close');
-    const whackStop = document.querySelector('#whack-stop');
-    const restoreDestroyedButton = document.querySelector('#restore-destroyed');
-    const whackSongName = document.querySelector('#whack-song-name');
-    const whackHealthText = document.querySelector('#whack-health-text');
-    const healthFill = document.querySelector('#health-fill');
-    const whackMessage = document.querySelector('#whack-message');
+    /* =========================================================
+       GET YOUTUBE VIDEO IDS
+       ========================================================= */
+
+    const ids = songs
+      .map(url =>
+        url.match(
+          /(?:youtu\.be\/|shorts\/|watch\?v=)([^?&/]+)/
+        )?.[1]
+      )
+      .filter(Boolean);
+
+
+    /* =========================================================
+       PAGE ELEMENTS
+       ========================================================= */
+
+    const nowPlaying =
+      document.querySelector("#now-playing");
+
+    const list =
+      document.querySelector("#song-list");
+
+    const reading =
+      document.querySelector("#reading");
+
+    const cards =
+      document.querySelector("#cards");
+
+    const previousButton =
+      document.querySelector("#previous-song");
+
+    const nextButton =
+      document.querySelector("#next-song");
+
+
+    /* =========================================================
+       PLAYBACK STATE
+       ========================================================= */
 
     let player = null;
+
     let currentIndex = 0;
-    let gameState = null;
-    let whackTimers = [];
-    let destroyedSongs = [];
 
-    function loadDestroyedSongs() {
-      try {
-        const saved = JSON.parse(localStorage.getItem('rizneyDestroyedSongs') || '[]');
-        destroyedSongs = Array.isArray(saved) ? saved : [];
-      } catch {
-        destroyedSongs = [];
-      }
-    }
+    /*
+      null = normal chronological mode
 
-    function saveDestroyedSongs() {
-      localStorage.setItem('rizneyDestroyedSongs', JSON.stringify(destroyedSongs));
-    }
+      array = six-card playlist mode
+    */
+
+    let cardPlaylist = null;
+
+    let cardPosition = 0;
+
+
+    /* =========================================================
+       TITLES
+       ========================================================= */
 
     function titleFor(index) {
       return `Song ${index + 1}`;
     }
 
+
     function updateButtons() {
-      previousButton.disabled = currentIndex <= 0;
-      nextButton.disabled = currentIndex >= ids.length - 1;
+      previousButton.disabled =
+        cardPlaylist === null
+          ? currentIndex <= 0
+          : cardPosition <= 0;
+
+      nextButton.disabled =
+        cardPlaylist === null
+          ? currentIndex >= ids.length - 1
+          : cardPosition >= cardPlaylist.length - 1;
     }
 
-    function isDestroyed(index) {
-      return destroyedSongs.includes(String(index));
-    }
+
+    /* =========================================================
+       PLAY A SONG
+       ========================================================= */
 
     function play(index, autoplay = true) {
+
       if (!ids[index]) return;
+
       currentIndex = index;
-      nowPlaying.textContent = `Now playing: ${titleFor(index)}`;
+
+      nowPlaying.textContent =
+        `Now playing: ${titleFor(index)}`;
 
       if (!player) return;
-      if (autoplay) player.loadVideoById({ videoId: ids[index] });
-      else player.cueVideoById({ videoId: ids[index] });
+
+      if (autoplay) {
+
+        player.loadVideoById({
+          videoId: ids[index]
+        });
+
+      } else {
+
+        player.cueVideoById({
+          videoId: ids[index]
+        });
+
+      }
+
+      updateButtons();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+
+
+    function playPlaylistPosition(position) {
+      if (!cardPlaylist || !cardPlaylist[position]) return;
+
+      cardPosition = position;
+      currentIndex = cardPlaylist[position];
+
+      nowPlaying.textContent =
+        `Reading ${position + 1} of 6: ${titleFor(currentIndex)}`;
+
+      if (player) {
+        player.loadVideoById({
+          videoId: ids[currentIndex]
+        });
+      }
+
+      updateButtons();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+
+
+    function playPrevious() {
+      if (cardPlaylist !== null) {
+        if (cardPosition > 0) {
+          playPlaylistPosition(cardPosition - 1);
+        }
+        return;
+      }
+
+      if (currentIndex > 0) {
+        play(currentIndex - 1);
+      }
+    }
+
+
+    function playNext() {
+
+      /*
+        SIX-CARD MODE
+      */
+
+      if (cardPlaylist !== null) {
+
+        if (cardPosition < cardPlaylist.length - 1) {
+          playPlaylistPosition(cardPosition + 1);
+          return;
+        }
+
+        nowPlaying.textContent =
+          "Music reading complete ✦";
+
+        cardPlaylist = null;
+        cardPosition = 0;
+        updateButtons();
+
+        return;
+      }
+
+
+      /*
+        NORMAL CHRONOLOGICAL MODE
+      */
+
+      const nextIndex = currentIndex + 1;
+
+      if (nextIndex < ids.length) {
+
+        play(nextIndex);
+
+      } else {
+
+        nowPlaying.textContent =
+          "You reached the end of the collection ✦";
+
+      }
 
       updateButtons();
     }
 
-    function prev() {
-      if (currentIndex > 0) play(currentIndex - 1);
-    }
 
-    function next() {
-      if (currentIndex < ids.length - 1) play(currentIndex + 1);
-    }
-
-    function randomSong() {
-      if (ids.length <= 1) return;
-      let nextIndex = currentIndex;
-      while (nextIndex === currentIndex) {
-        nextIndex = Math.floor(Math.random() * ids.length);
-      }
-      play(nextIndex);
-    }
-
-    function renderList() {
-      list.innerHTML = '';
-      ids.forEach((id, index) => {
-        const row = document.createElement('article');
-        row.className = 'song';
-        row.innerHTML = `
-          <div class="song-number">${index + 1}</div>
-          <div class="song-title">
-            ${titleFor(index)}
-            <small>YouTube video • chronological position ${index + 1}</small>
-          </div>
-          <button class="play" type="button">Play</button>
-        `;
-
-        const playButton = row.querySelector('.play');
-        playButton.addEventListener('click', () => play(index));
-        row.addEventListener('dblclick', () => play(index));
-        row.style.opacity = isDestroyed(index) ? '.45' : '1';
-        list.appendChild(row);
-      });
-    }
-
-    function stopWhackMoles() {
-      whackTimers.forEach(timer => clearTimeout(timer));
-      whackTimers = [];
-      document.querySelectorAll('.mole-hole').forEach((hole) => {
-        hole.classList.remove('active');
-        const mole = hole.querySelector('.mole');
-        if (mole) mole.textContent = '8-BIT';
-      });
-    }
-
-    function updateHealthDisplay() {
-      if (!gameState) {
-        healthFill.style.width = '100%';
-        whackHealthText.textContent = 'Health';
-        return;
-      }
-
-      const pct = Math.max(0, Math.min(100, gameState.health));
-      healthFill.style.width = pct + '%';
-      whackHealthText.textContent = `Health ${Math.round(pct)}%`;
-    }
-
-    function closeWhackModal() {
-      stopWhackMoles();
-      if (gameState && gameState.status === 'playing') {
-        gameState.status = 'ended';
-      }
-      gameState = null;
-      whackModal.classList.add('hidden');
-      whackModal.setAttribute('aria-hidden', 'true');
-      if (player && typeof player.stopVideo === 'function') {
-        player.stopVideo();
-      }
-    }
-
-    function openWhackModal() {
-      if (isDestroyed(currentIndex)) {
-        whackMessage.textContent = `Song ${currentIndex + 1} was already destroyed in this browser.\nRestore destroyed songs to keep going.`;
-        whackMessage.classList.add('survived');
-      } else {
-        whackMessage.textContent = 'Ready to whack!';
-        whackMessage.classList.remove('survived');
-      }
-
-      whackSongName.textContent = titleFor(currentIndex);
-      whackModal.classList.remove('hidden');
-      whackModal.setAttribute('aria-hidden', 'false');
-      startWhackGame();
-    }
-
-    function startWhackGame() {
-      if (isDestroyed(currentIndex)) return;
-
-      gameState = {
-        activeIndex: currentIndex,
-        health: 100,
-        status: 'playing'
-      };
-
-      whackSongName.textContent = titleFor(currentIndex);
-      updateHealthDisplay();
-      whackMessage.textContent = 'WHACK!';
-      whackMessage.classList.remove('survived');
-      spawnMoleWave();
-    }
-
-    function maybeLoseHealth(damage) {
-      if (!gameState || gameState.status !== 'playing') return;
-      gameState.health = Math.max(0, gameState.health - damage);
-      updateHealthDisplay();
-
-      if (gameState.health <= 0) {
-        destroyCurrentSong();
-      }
-    }
-
-    function destroyCurrentSong() {
-      if (!gameState || gameState.status !== 'playing') return;
-      gameState.status = 'destroyed';
-      stopWhackMoles();
-
-      if (!destroyedSongs.includes(String(currentIndex))) {
-        destroyedSongs.push(String(currentIndex));
-        saveDestroyedSongs();
-      }
-
-      whackMessage.textContent = 'SONG IS DESTROYED!\nThe track is gone for this browser.';
-      whackMessage.classList.remove('survived');
-
-      if (player && typeof player.stopVideo === 'function') {
-        player.stopVideo();
-      }
-
-      setTimeout(() => {
-        whackModal.classList.add('hidden');
-        whackModal.setAttribute('aria-hidden', 'true');
-        whackMessage.textContent = 'Ready to whack!';
-        renderList();
-      }, 1200);
-    }
-
-    function spawnMoleWave() {
-      if (!gameState || gameState.status !== 'playing') return;
-
-      const holes = Array.from(document.querySelectorAll('.mole-hole'));
-      const activeCount = 1 + Math.floor(Math.random() * 2); // 1-2 moles at a time
-      const randomHoles = [...holes].sort(() => Math.random() - 0.5).slice(0, activeCount);
-
-      randomHoles.forEach((hole, idx) => {
-        const mole = hole.querySelector('.mole');
-        hole.classList.add('active');
-        mole.textContent = '8-BIT';
-
-        const timeout = setTimeout(() => {
-          hole.classList.remove('active');
-          mole.textContent = '8-BIT';
-        }, 200 + Math.random() * 140 + idx * 25);
-
-        whackTimers.push(timeout);
-      });
-
-      const nextDelay = 330 + Math.random() * 260;
-      const loop = setTimeout(() => {
-        spawnMoleWave();
-      }, nextDelay);
-      whackTimers.push(loop);
-    }
-
-    function handleWhackHit(event) {
-      const hole = event.currentTarget;
-      if (!gameState || gameState.status !== 'playing') return;
-      if (!hole.classList.contains('active')) {
-        maybeLoseHealth(10);
-        whackMessage.textContent = 'MISS!\nToo slow.';
-        return;
-      }
-
-      const mole = hole.querySelector('.mole');
-      if (mole) mole.textContent = 'BAM!';
-      hole.classList.remove('active');
-
-      const successHit = Math.random() < 0.9;
-      if (successHit) {
-        whackMessage.textContent = 'GOOD HIT!\nKeep going.';
-        maybeLoseHealth(18);
-      } else {
-        whackMessage.textContent = 'CLOSE!\nThe song fights back.';
-        maybeLoseHealth(24);
-      }
-    }
-
-    function restoreDestroyedSongs() {
-      destroyedSongs = [];
-      saveDestroyedSongs();
-      renderList();
-      whackMessage.textContent = 'Destroyed songs restored.';
-      whackMessage.classList.add('survived');
-      setTimeout(() => {
-        if (gameState && gameState.status === 'destroyed') {
-          whackMessage.textContent = 'Ready to whack!';
-          whackMessage.classList.remove('survived');
-        }
-      }, 900);
-    }
-
-    function setupWhackGame() {
-      document.querySelectorAll('.mole-hole').forEach((hole) => {
-        hole.addEventListener('click', handleWhackHit);
-      });
-
-      whackButton.addEventListener('click', openWhackModal);
-      whackClose.addEventListener('click', closeWhackModal);
-      whackStop.addEventListener('click', () => {
-        stopWhackMoles();
-        gameState = null;
-        whackModal.classList.add('hidden');
-        whackModal.setAttribute('aria-hidden', 'true');
-        whackMessage.textContent = 'Ready to whack!';
-      });
-      restoreDestroyedButton.addEventListener('click', restoreDestroyedSongs);
-    }
-
-    function buildSongList() {
-      list.innerHTML = '';
-      ids.forEach((id, index) => {
-        const row = document.createElement('article');
-        row.className = 'song';
-        row.innerHTML = `
-          <div class="song-number">${index + 1}</div>
-          <div class="song-title">
-            ${titleFor(index)}
-            <small>YouTube video • position ${index + 1}</small>
-          </div>
-          <button class="play" type="button">Play</button>
-        `;
-
-        const playButton = row.querySelector('.play');
-        playButton.addEventListener('click', () => play(index));
-        row.style.opacity = isDestroyed(index) ? '.4' : '1';
-        list.appendChild(row);
-      });
-    }
-
-    previousButton.addEventListener('click', prev);
-    nextButton.addEventListener('click', next);
-    randomButton.addEventListener('click', randomSong);
+    /* =========================================================
+       YOUTUBE PLAYER API
+       ========================================================= */
 
     window.onYouTubeIframeAPIReady = function () {
-      player = new YT.Player('player', {
+
+      player = new YT.Player("player", {
+
         videoId: ids[0],
-        playerVars: { autoplay: 0, rel: 0, modestbranding: 1, playsinline: 1 },
+
+        playerVars: {
+          autoplay: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1
+        },
+
         events: {
-          onReady: () => {
-            loadDestroyedSongs();
-            buildSongList();
+
+          onReady: function () {
+
+            nowPlaying.textContent =
+              `Now playing: ${titleFor(0)}`;
+
             updateButtons();
-            nowPlaying.textContent = `Now playing: ${titleFor(0)}`;
-            setupWhackGame();
+
           },
-          onStateChange: (event) => {
+
+          onStateChange: function (event) {
+
+            /*
+              YT.PlayerState.ENDED = 0
+
+              When a song finishes,
+              automatically determine
+              what comes next.
+            */
+
             if (event.data === YT.PlayerState.ENDED) {
-              if (gameState && gameState.status === 'playing') {
-                destroyCurrentSong();
-              } else {
-                next();
-              }
+
+              playNext();
+
             }
+
           }
+
         }
+
       });
+
     };
+
+
+    /* =========================================================
+       BUILD SONG LIST
+       ========================================================= */
+
+    ids.forEach((id, index) => {
+
+      const row =
+        document.createElement("article");
+
+      row.className = "song";
+
+      row.innerHTML = `
+        <span class="song-number">
+          ${index + 1}
+        </span>
+
+        <span class="song-title">
+          ♫ ${titleFor(index)}
+
+          <small>
+            YouTube video • chronological position ${index + 1}
+          </small>
+        </span>
+
+        <button
+          class="play"
+          type="button"
+        >
+          Play
+        </button>
+      `;
+
+      row
+        .querySelector("button")
+        .addEventListener("click", () => {
+
+          /*
+            Clicking a normal song
+            exits six-card mode.
+          */
+
+          cardPlaylist = null;
+          cardPosition = 0;
+
+          play(index);
+
+        });
+
+      list.appendChild(row);
+
+    });
+
+
+    /* =========================================================
+       RANDOM SONG
+       ========================================================= */
+
+    document
+      .querySelector("#random-song")
+      .addEventListener("click", () => {
+
+        /*
+          Random starts a normal chronological
+          sequence from the randomly chosen song.
+        */
+
+        cardPlaylist = null;
+        cardPosition = 0;
+
+        const randomIndex =
+          Math.floor(Math.random() * ids.length);
+
+        play(randomIndex);
+
+      });
+
+    document
+      .querySelector("#previous-song")
+      .addEventListener("click", playPrevious);
+
+    document
+      .querySelector("#next-song")
+      .addEventListener("click", playNext);
+
+
+    /* =========================================================
+       DRAW SIX CARDS
+       ========================================================= */
+
+    document
+      .querySelector("#draw-cards")
+      .addEventListener("click", () => {
+
+        /*
+          Pick six different songs.
+        */
+
+        const chosen =
+          [...ids.keys()]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, Math.min(6, ids.length));
+
+        /*
+          Save the exact order.
+
+          The player will use this same order
+          when each song finishes.
+        */
+
+        cardPlaylist = chosen;
+        cardPosition = 0;
+
+        /*
+          Clear previous reading.
+        */
+
+        cards.innerHTML = "";
+
+        const symbols = ["☾", "✦", "☉", "♢", "✧", "✺"];
+
+        chosen.forEach((index, position) => {
+
+          const card =
+            document.createElement("article");
+
+          card.className = "card";
+
+          card.innerHTML = `
+            <span class="symbol">
+              ${symbols[position]}
+            </span>
+
+            <strong>
+              ${titleFor(index)}
+            </strong>
+
+            <a href="#" aria-label="Play ${titleFor(index)}">
+              Reveal &amp; play
+            </a>
+          `;
+
+          card
+            .querySelector("a")
+            .addEventListener("click", event => {
+              event.preventDefault();
+              playPlaylistPosition(position);
+            });
+
+          cards.appendChild(card);
+
+        });
+
+        reading.hidden = false;
+
+        if (chosen.length > 0) {
+          playPlaylistPosition(0);
+          reading.scrollIntoView({ behavior: "smooth" });
+        }
+
+      });
+
+    updateButtons();
+
   </script>
+
 </body>
 </html>
