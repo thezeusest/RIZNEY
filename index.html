@@ -426,6 +426,10 @@
       ♫ Random
     </button>
 
+    <button id="whack-track" type="button">
+      🎯 Whack-a-Track
+    </button>
+
     <button id="draw-cards" type="button">
       ✦ Draw Six
     </button>
@@ -841,6 +845,13 @@
     });
 
     document.querySelector("#random-song").addEventListener("click", () => {
+      cardPlaylist = null;
+      cardPosition = 0;
+      const randomIndex = Math.floor(Math.random() * ids.length);
+      play(randomIndex);
+    });
+
+    document.querySelector("#whack-track").addEventListener("click", () => {
       cardPlaylist = null;
       cardPosition = 0;
       const randomIndex = Math.floor(Math.random() * ids.length);
