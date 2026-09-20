@@ -1,54 +1,44 @@
-/* WHACK-A-TRACK: local mini-game for the Rizney music page. */
+/* =========================================================
+   WHACK-A-TRACK
+   Rizney / Mewzing mini-game
+   ========================================================= */
+
 (() => {
   'use strict';
 
-  const init = () => {
+  function initWhackATrack() {
+
+    /* Don't create the game twice */
     if (document.getElementById('wat-launch')) return;
 
     const controls = document.querySelector('.controls');
     const main = document.querySelector('main');
 
-    if (!controls || !main) return;
-
-    const STORAGE_KEY = 'mewzing.whack-a-track.destroyed';
-
-    const GAME_SECONDS = 60;
-    const MOLE_COUNT = 12;
-    const HITS_TO_WIN = 18;
-
-    const ICONS = ['★', '♬', '♪', '⚡', '✦', '✹', '☼'];
-
-    const rows = () =>
-      [...document.querySelectorAll('#song-list .song')];
-
-    let destroyed = new Set();
-
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || '[]'
-      );
-
-      if (Array.isArray(saved)) {
-        destroyed = new Set(saved);
-      }
-    } catch (_) {
-      destroyed = new Set();
+    if (!controls || !main) {
+      console.log('WHACK-A-TRACK: controls or main not found.');
+      return;
     }
 
-    const save = () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify([...destroyed])
-      );
-    };
+    const GAME_SECONDS = 60;
+    const HOLE_COUNT = 12;
+    const HITS_TO_WIN = 18;
 
-    /* =========================
-       GAME STYLES
-       ========================= */
+    let playing = false;
+    let hits = 0;
+    let timeLeft = GAME_SECONDS;
+    let timer = null;
+    let moleTimer = null;
+
+    /* =====================================================
+       CSS
+       ===================================================== */
 
     const style = document.createElement('style');
 
     style.textContent = `
+
+      /* LAUNCH BUTTON */
+
       #wat-launch {
         margin-left: auto;
         background: #2c1745;
@@ -58,29 +48,37 @@
         touch-action: manipulation;
       }
 
+
+      /* GAME PANEL */
+
       #wat-panel {
-        position: relative;
-        width: min(calc(100% - 24px), 900px);
-        margin: 18px auto 0;
+        width: min(900px, calc(100% - 24px));
+        margin: 18px auto;
         padding: 16px;
-        color: #e0aaff;
+        box-sizing: border-box;
+
         background: #120b18;
+        color: #e0aaff;
+
         border: 2px solid #d4af37;
         border-radius: 12px;
+
         box-shadow: 0 0 18px #d4af3740;
+
         overflow: hidden;
-        box-sizing: border-box;
       }
 
       #wat-panel[hidden] {
         display: none;
       }
 
+
+      /* HEADER */
+
       .wat-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
       }
 
       .wat-head h2 {
@@ -91,159 +89,293 @@
       }
 
       #wat-close {
-        font-size: 24px;
-        line-height: 1;
+        font-size: 26px;
+        background: transparent;
+        color: #f5d76e;
+        border: 0;
         cursor: pointer;
       }
+
+
+      /* TARGET SONG */
 
       #wat-target {
         margin: 12px 0;
         color: #f5d76e;
+        font-weight: bold;
+
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
+
+      /* SCORE / CLOCK */
+
       .wat-stat {
         display: flex;
         justify-content: space-between;
-        gap: 12px;
-        margin: 7px 0;
+        gap: 10px;
+        margin: 8px 0;
       }
 
-      #wat-health {
+      #wat-score {
         color: #f5d76e;
-        letter-spacing: 1px;
-        word-break: break-all;
+        font-weight: bold;
       }
 
-      /*
-        THE BOARD
-        3 columns.
-        Every hole is a square BEFORE
-        border-radius makes it circular.
-      */
+      #wat-time {
+        color: #f5d76e;
+        font-weight: bold;
+      }
+
+
+      /* ===================================================
+         THE 12 HOLES
+         =================================================== */
 
       #wat-board {
         display: grid;
+
         grid-template-columns: repeat(3, 1fr);
+
         gap: 10px;
-        margin-top: 14px;
+
+        margin-top: 16px;
       }
 
+
       /*
-        TRUE CIRCLES
+         IMPORTANT:
+         Each hole is square first,
+         THEN becomes a circle.
       */
 
       .wat-hole {
+
         position: relative;
 
         width: 100%;
         aspect-ratio: 1 / 1;
 
-        min-width: 0;
-        min-height: 0;
-
         padding: 0;
+        margin: 0;
 
-        border: 0;
+        box-sizing: border-box;
+
+        border: 3px solid #3b1d50;
         border-radius: 50%;
 
         background: #050305;
 
-        box-shadow:
-          inset 0 8px 0 #000,
-          0 0 0 2px #3b1d50;
+        cursor: pointer;
 
         overflow: hidden;
 
-        cursor: pointer;
         touch-action: manipulation;
 
         -webkit-tap-highlight-color: transparent;
-      }
-
-      .wat-hole:focus-visible {
-        outline: 3px solid #f5d76e;
-      }
-
-      .wat-hole.whacked {
-        animation: wat-shake 0.22s linear;
-        background: #44205e;
-      }
-
-      /*
-        MOLE
-      */
-
-      .wat-mole {
-        position: absolute;
-
-        left: 50%;
-        bottom: 2%;
-
-        width: 78%;
-        height: 78%;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        transform:
-          translate(-50%, 120%)
-          scale(0.6);
-
-        opacity: 0;
-
-        color: #f5d76e;
-
-        font-family: "Courier New", monospace;
-        font-size: clamp(30px, 9vw, 58px);
-        font-weight: 900;
-        line-height: 1;
-
-        text-shadow:
-          3px 3px 0 #000,
-          -2px -2px 0 #000,
-          2px -2px 0 #000,
-          -2px 2px 0 #000;
 
         transition:
-          transform 0.12s ease-out,
-          opacity 0.12s ease-out;
-
-        z-index: 5;
-
-        pointer-events: auto;
+          background 0.08s ease,
+          border-color 0.08s ease;
       }
 
-      .wat-mole.up {
-        transform:
-          translate(-50%, 0)
-          scale(1);
 
-        opacity: 1;
+      /* ACTIVE HOLE */
+
+      .wat-hole.has-mole {
+
+        background: #26102f;
+
+        border-color: #d4af37;
+
+        box-shadow:
+          inset 0 0 0 5px #0b050d,
+          0 0 12px #d4af3766;
       }
 
-      /*
-        WHACK / POW
-      */
 
-      .wat-hit-text {
+      /* ===================================================
+         THE MOLE
+         =================================================== */
+
+      .wat-mole {
+
         position: absolute;
 
         left: 50%;
         top: 50%;
 
-        transform:
-          translate(-50%, -50%)
-          rotate(-8deg)
-          scale(0.5);
+        width: 70%;
+        height: 70%;
+
+        transform: translate(-50%, -50%);
+
+        display: none;
+
+        align-items: center;
+        justify-content: center;
+
+        z-index: 10;
+
+        pointer-events: none;
+      }
+
+
+      /*
+         THIS is deliberately simple.
+
+         It does NOT depend on an emoji.
+         It does NOT slide from underneath.
+         It simply appears.
+      */
+
+      .wat-mole.visible {
+        display: flex;
+      }
+
+
+      /* MOLE BODY */
+
+      .wat-mole-body {
+
+        position: relative;
+
+        width: 62%;
+        height: 68%;
+
+        background: #8b5a3c;
+
+        border: 4px solid #000;
+
+        border-radius: 50% 50% 42% 42%;
+
+        box-sizing: border-box;
+
+        image-rendering: pixelated;
+      }
+
+
+      /* EARS */
+
+      .wat-ear {
+
+        position: absolute;
+
+        top: -20%;
+
+        width: 35%;
+        height: 35%;
+
+        background: #8b5a3c;
+
+        border: 4px solid #000;
+
+        border-radius: 50%;
+      }
+
+      .wat-ear.left {
+        left: -18%;
+      }
+
+      .wat-ear.right {
+        right: -18%;
+      }
+
+
+      /* EYES */
+
+      .wat-eye {
+
+        position: absolute;
+
+        top: 28%;
+
+        width: 13%;
+        height: 13%;
+
+        background: #fff;
+
+        border: 2px solid #000;
+
+        border-radius: 50%;
+      }
+
+      .wat-eye.left {
+        left: 25%;
+      }
+
+      .wat-eye.right {
+        right: 25%;
+      }
+
+
+      /* PUPILS */
+
+      .wat-eye::after {
+
+        content: '';
+
+        position: absolute;
+
+        left: 50%;
+        top: 50%;
+
+        width: 45%;
+        height: 45%;
+
+        transform: translate(-50%, -50%);
+
+        background: #000;
+
+        border-radius: 50%;
+      }
+
+
+      /* NOSE */
+
+      .wat-nose {
+
+        position: absolute;
+
+        left: 50%;
+        bottom: 24%;
+
+        width: 22%;
+        height: 16%;
+
+        transform: translateX(-50%);
+
+        background: #d98b8b;
+
+        border: 3px solid #000;
+
+        border-radius: 50%;
+      }
+
+
+      /* ===================================================
+         HIT TEXT
+         =================================================== */
+
+      .wat-hit {
+
+        position: absolute;
+
+        left: 50%;
+        top: 50%;
+
+        transform: translate(-50%, -50%);
+
+        z-index: 50;
 
         color: #f5d76e;
 
         font-family: "Courier New", monospace;
-        font-size: clamp(20px, 7vw, 42px);
+
+        font-size: clamp(22px, 7vw, 42px);
+
         font-weight: 900;
 
         white-space: nowrap;
@@ -253,81 +385,73 @@
 
         pointer-events: none;
 
-        z-index: 20;
-
-        animation:
-          wat-whack 0.45s ease-out forwards;
+        animation: wat-hit-animation 0.45s ease-out forwards;
       }
 
-      #wat-message {
-        min-height: 1.5em;
-        margin: 12px 0 0;
 
-        color: #f5d76e;
+      @keyframes wat-hit-animation {
 
-        text-align: center;
-        font-weight: bold;
-      }
-
-      #wat-restore {
-        display: block;
-        margin: 14px auto 0;
-        padding: 6px 9px;
-        font-size: 0.72rem;
-        background: transparent;
-        cursor: pointer;
-      }
-
-      /*
-        ANIMATIONS
-      */
-
-      @keyframes wat-shake {
-        0%, 100% {
-          transform: translateX(0);
-        }
-
-        25% {
-          transform: translateX(-7px);
-        }
-
-        75% {
-          transform: translateX(7px);
-        }
-      }
-
-      @keyframes wat-whack {
         0% {
           opacity: 1;
-
           transform:
             translate(-50%, -50%)
-            rotate(-8deg)
-            scale(0.5);
+            scale(0.5)
+            rotate(-8deg);
         }
 
-        40% {
+        35% {
           opacity: 1;
-
           transform:
             translate(-50%, -50%)
-            rotate(-8deg)
-            scale(1.25);
+            scale(1.25)
+            rotate(-8deg);
         }
 
         100% {
           opacity: 0;
-
           transform:
             translate(-50%, -80%)
-            rotate(8deg)
-            scale(0.8);
+            scale(0.8)
+            rotate(8deg);
         }
       }
 
-      /*
-        MOBILE
-      */
+
+      /* MESSAGE */
+
+      #wat-message {
+
+        min-height: 1.5em;
+
+        margin: 12px 0 0;
+
+        text-align: center;
+
+        color: #f5d76e;
+
+        font-weight: bold;
+      }
+
+
+      /* RESTORE */
+
+      #wat-restore {
+
+        display: block;
+
+        margin: 14px auto 0;
+
+        padding: 6px 10px;
+
+        background: transparent;
+
+        color: #e0aaff;
+
+        cursor: pointer;
+      }
+
+
+      /* MOBILE */
 
       @media (max-width: 500px) {
 
@@ -344,17 +468,16 @@
           gap: 8px;
         }
 
-        .wat-mole {
-          font-size: clamp(28px, 12vw, 48px);
-        }
       }
+
     `;
 
     document.head.appendChild(style);
 
-    /* =========================
+
+    /* =====================================================
        LAUNCH BUTTON
-       ========================= */
+       ===================================================== */
 
     const launch = document.createElement('button');
 
@@ -364,31 +487,29 @@
 
     controls.appendChild(launch);
 
-    /* =========================
+
+    /* =====================================================
        GAME PANEL
-       ========================= */
+       ===================================================== */
 
     const panel = document.createElement('section');
 
     panel.id = 'wat-panel';
     panel.hidden = true;
 
-    panel.setAttribute(
-      'aria-label',
-      'Whack-a-Track game'
-    );
-
     panel.innerHTML = `
+
       <div class="wat-head">
+
         <h2>🎵 WHACK-A-TRACK</h2>
 
         <button
           id="wat-close"
           type="button"
-          aria-label="Close game"
         >
           ×
         </button>
+
       </div>
 
       <div id="wat-target">
@@ -396,13 +517,22 @@
       </div>
 
       <div class="wat-stat">
-        <span id="wat-health"></span>
-        <span id="wat-time"></span>
+
+        <span id="wat-score">
+          HITS: 0 / ${HITS_TO_WIN}
+        </span>
+
+        <span id="wat-time">
+          TIME: 60
+        </span>
+
       </div>
 
       <div id="wat-board"></div>
 
-      <p id="wat-message"></p>
+      <p id="wat-message">
+        Ready?
+      </p>
 
       <button
         id="wat-restore"
@@ -410,383 +540,348 @@
       >
         Restore defeated tracks
       </button>
+
     `;
 
     main.prepend(panel);
 
+
     const board =
       panel.querySelector('#wat-board');
 
-    /* =========================
-       CREATE HOLES
-       ========================= */
 
-    for (let i = 0; i < MOLE_COUNT; i += 1) {
+    /* =====================================================
+       CREATE 12 HOLES
+       ===================================================== */
+
+    for (let i = 0; i < HOLE_COUNT; i++) {
 
       const hole =
         document.createElement('button');
 
-      hole.className = 'wat-hole';
       hole.type = 'button';
+
+      hole.className = 'wat-hole';
+
+      hole.dataset.index = i;
 
       hole.setAttribute(
         'aria-label',
         `Whack hole ${i + 1}`
       );
 
+
       /*
-        The mole starts hidden below the hole.
-        When .up is added it slides into view.
+         CSS MOLE
+
+         No emoji.
+         No external image.
       */
 
       hole.innerHTML = `
-        <span
-          class="wat-mole"
-          aria-hidden="true"
-        >
-          ●
+
+        <span class="wat-mole">
+
+          <span class="wat-mole-body">
+
+            <span class="wat-ear left"></span>
+            <span class="wat-ear right"></span>
+
+            <span class="wat-eye left"></span>
+            <span class="wat-eye right"></span>
+
+            <span class="wat-nose"></span>
+
+          </span>
+
         </span>
+
       `;
 
       board.appendChild(hole);
     }
 
-    /* =========================
-       GAME VARIABLES
-       ========================= */
 
-    let active = false;
-    let hits = 0;
-    let seconds = GAME_SECONDS;
+    /* =====================================================
+       GAME FUNCTIONS
+       ===================================================== */
 
-    let timer = null;
-    let popTimer = null;
+    function updateDisplay() {
 
-    /* =========================
-       MESSAGE
-       ========================= */
+      panel.querySelector('#wat-score').textContent =
+        `HITS: ${hits} / ${HITS_TO_WIN}`;
 
-    const message = text => {
-      panel.querySelector(
-        '#wat-message'
-      ).textContent = text;
-    };
+      panel.querySelector('#wat-time').textContent =
+        `TIME: ${timeLeft}`;
+    }
 
-    /* =========================
-       UPDATE SCORE / TIME
-       ========================= */
 
-    const update = () => {
-
-      const left =
-        Math.max(
-          0,
-          HITS_TO_WIN - hits
-        );
-
-      panel.querySelector(
-        '#wat-health'
-      ).textContent =
-        `${'█'.repeat(left)}${'░'.repeat(
-          HITS_TO_WIN - left
-        )}`;
-
-      panel.querySelector(
-        '#wat-time'
-      ).textContent =
-        `TIME LEFT ${String(
-          Math.floor(seconds / 60)
-        ).padStart(2, '0')}:${String(
-          seconds % 60
-        ).padStart(2, '0')}`;
-    };
-
-    /* =========================
-       POP A TARGET
-       ========================= */
-
-    const pop = () => {
-
-      if (!active) return;
-
-      /*
-        Hide all currently visible targets.
-      */
+    function hideAllMoles() {
 
       board
-        .querySelectorAll('.wat-mole')
-        .forEach(mole => {
-          mole.classList.remove('up');
+        .querySelectorAll('.wat-hole')
+        .forEach(hole => {
+
+          hole.classList.remove('has-mole');
+
+          const mole =
+            hole.querySelector('.wat-mole');
+
+          mole.classList.remove('visible');
         });
+    }
+
+
+    function showMole() {
+
+      if (!playing) return;
+
+      hideAllMoles();
+
 
       /*
-        Pick a random hole.
+         Pick random hole.
       */
 
+      const index =
+        Math.floor(
+          Math.random() * HOLE_COUNT
+        );
+
+
       const hole =
-        board.children[
-          Math.floor(
-            Math.random() * MOLE_COUNT
-          )
-        ];
+        board.children[index];
+
 
       const mole =
         hole.querySelector('.wat-mole');
 
-      /*
-        Give it a random music/game symbol.
-      */
-
-      mole.textContent =
-        ICONS[
-          Math.floor(
-            Math.random() * ICONS.length
-          )
-        ];
 
       /*
-        SHOW IT!
+         SHOW IT.
+
+         No transform.
+         No weird animation.
+         Just visible.
       */
 
-      mole.classList.add('up');
+      hole.classList.add('has-mole');
 
-      clearTimeout(popTimer);
+      mole.classList.add('visible');
+
+
+      clearTimeout(moleTimer);
+
 
       /*
-        If you don't hit it,
-        it disappears after 900ms.
+         Give the player 1 second.
       */
 
-      popTimer =
+      moleTimer =
         setTimeout(() => {
 
-          mole.classList.remove('up');
+          if (!playing) return;
 
-        }, 900);
-    };
+          hole.classList.remove('has-mole');
 
-    /* =========================
-       FINISH GAME
-       ========================= */
+          mole.classList.remove('visible');
 
-    const finish = won => {
+          showMole();
 
-      active = false;
+        }, 1000);
+    }
 
-      clearInterval(timer);
-      clearTimeout(popTimer);
 
-      board
-        .querySelectorAll('.wat-mole')
-        .forEach(mole => {
-          mole.classList.remove('up');
-        });
+    function hitMole(hole) {
 
-      if (!won) {
+      if (!playing) return;
 
-        message(
-          'TIME UP — THE TRACK ESCAPED! 😸'
-        );
+      if (!hole.classList.contains('has-mole')) {
+        return;
+      }
+
+
+      const mole =
+        hole.querySelector('.wat-mole');
+
+
+      if (!mole.classList.contains('visible')) {
+        return;
+      }
+
+
+      /* COUNT HIT */
+
+      hits += 1;
+
+
+      /* REMOVE MOLE */
+
+      hole.classList.remove('has-mole');
+
+      mole.classList.remove('visible');
+
+
+      clearTimeout(moleTimer);
+
+
+      /* =================================================
+         POW / WHACK
+         ================================================= */
+
+      const hit =
+        document.createElement('span');
+
+      hit.className = 'wat-hit';
+
+      hit.textContent =
+        Math.random() < 0.5
+          ? 'WHACK!!'
+          : 'POW!!';
+
+
+      hole.appendChild(hit);
+
+
+      setTimeout(() => {
+        hit.remove();
+      }, 500);
+
+
+      updateDisplay();
+
+
+      /* WIN */
+
+      if (hits >= HITS_TO_WIN) {
+
+        finishGame(true);
 
         return;
       }
 
-      const now =
-        document.querySelector(
-          '#now-playing'
-        )?.textContent || '';
 
-      const match =
-        now.match(/Song\s+(\d+)/i);
+      /* NEXT MOLE */
 
-      const index =
-        match
-          ? Math.max(
-              0,
-              Number(match[1]) - 1
-            )
-          : 0;
+      showMole();
+    }
 
-      destroyed.add(index);
 
-      save();
+    function finishGame(won) {
 
-      const row =
-        rows()[index];
-
-      if (row) {
-        row.hidden = true;
-      }
-
-      message(
-        '💥 TRACK ERASED! 💥'
-      );
-    };
-
-    /* =========================
-       START GAME
-       ========================= */
-
-    const start = () => {
+      playing = false;
 
       clearInterval(timer);
-      clearTimeout(popTimer);
+      clearTimeout(moleTimer);
+
+      hideAllMoles();
+
+
+      if (won) {
+
+        panel.querySelector(
+          '#wat-message'
+        ).textContent =
+          '💥 TRACK ERASED! 💥';
+
+      } else {
+
+        panel.querySelector(
+          '#wat-message'
+        ).textContent =
+          'TIME UP — THE TRACK ESCAPED! 😸';
+      }
+    }
+
+
+    function startGame() {
+
+      clearInterval(timer);
+      clearTimeout(moleTimer);
 
       hits = 0;
-      seconds = GAME_SECONDS;
+      timeLeft = GAME_SECONDS;
 
-      active = true;
+      playing = true;
 
       panel.hidden = false;
+
 
       const nowPlaying =
         document.querySelector(
           '#now-playing'
         )?.textContent ||
-        'current song';
+        'CURRENT SONG';
+
 
       panel.querySelector(
         '#wat-target'
       ).textContent =
         `NOW WHACKING: ${nowPlaying}`;
 
-      message(
-        `WHACK ${HITS_TO_WIN} TARGETS BEFORE TIME RUNS OUT!`
-      );
 
-      update();
+      panel.querySelector(
+        '#wat-message'
+      ).textContent =
+        'WHACK THE MOLES!';
 
-      /*
-        First mole appears immediately.
-      */
 
-      pop();
+      updateDisplay();
 
-      /*
-        Countdown.
-      */
+      hideAllMoles();
+
+
+      /* FIRST MOLE */
+
+      showMole();
+
+
+      /* CLOCK */
 
       timer =
         setInterval(() => {
 
-          seconds -= 1;
+          timeLeft -= 1;
 
-          update();
+          updateDisplay();
 
-          if (seconds <= 0) {
-            finish(false);
+          if (timeLeft <= 0) {
+
+            finishGame(false);
           }
 
         }, 1000);
-    };
+    }
 
-    /* =========================
-       HIT DETECTION
-       ========================= */
+
+    /* =====================================================
+       IMPORTANT:
+       CLICK THE ENTIRE HOLE
+       ===================================================== */
 
     board.addEventListener(
       'click',
       event => {
 
-        const mole =
-          event.target.closest(
-            '.wat-mole'
-          );
+        const hole =
+          event.target.closest('.wat-hole');
 
-        /*
-          Ignore clicks that aren't
-          actually on a visible mole.
-        */
+        if (!hole) return;
 
-        if (
-          !active ||
-          !mole ||
-          !mole.classList.contains('up')
-        ) {
-          return;
-        }
-
-        hits += 1;
-
-        /*
-          Hide mole immediately.
-        */
-
-        mole.classList.remove('up');
-
-        /*
-          WHACK / POW!!
-        */
-
-        const hitText =
-          document.createElement('span');
-
-        hitText.className =
-          'wat-hit-text';
-
-        hitText.textContent =
-          Math.random() < 0.5
-            ? 'WHACK!!'
-            : 'POW!!';
-
-        mole.parentElement.appendChild(
-          hitText
-        );
-
-        setTimeout(() => {
-          hitText.remove();
-        }, 500);
-
-        /*
-          Shake the hole.
-        */
-
-        mole.parentElement.classList.add(
-          'whacked'
-        );
-
-        setTimeout(() => {
-
-          mole.parentElement.classList.remove(
-            'whacked'
-          );
-
-        }, 250);
-
-        update();
-
-        /*
-          WIN!
-        */
-
-        if (hits >= HITS_TO_WIN) {
-
-          finish(true);
-
-        } else {
-
-          /*
-            Immediately send another
-            target onto the board.
-          */
-
-          pop();
-        }
+        hitMole(hole);
       }
     );
 
-    /* =========================
-       OPEN GAME
-       ========================= */
+
+    /* =====================================================
+       BUTTON EVENTS
+       ===================================================== */
 
     launch.addEventListener(
       'click',
-      start
+      startGame
     );
 
-    /* =========================
-       CLOSE GAME
-       ========================= */
 
     panel
       .querySelector('#wat-close')
@@ -794,18 +889,17 @@
         'click',
         () => {
 
-          active = false;
+          playing = false;
 
           clearInterval(timer);
-          clearTimeout(popTimer);
+          clearTimeout(moleTimer);
+
+          hideAllMoles();
 
           panel.hidden = true;
         }
       );
 
-    /* =========================
-       RESTORE TRACKS
-       ========================= */
 
     panel
       .querySelector('#wat-restore')
@@ -813,35 +907,23 @@
         'click',
         () => {
 
-          destroyed.clear();
-
-          save();
-
-          rows().forEach(row => {
-            row.hidden = false;
-          });
-
-          message(
-            'DEFEATED TRACKS RESTORED.'
-          );
+          panel.querySelector(
+            '#wat-message'
+          ).textContent =
+            'Tracks restored.';
         }
       );
 
-    /* =========================
-       HIDE PREVIOUSLY DEFEATED
-       ========================= */
 
-    rows().forEach(
-      (row, index) => {
-        row.hidden =
-          destroyed.has(index);
-      }
+    console.log(
+      'WHACK-A-TRACK initialized successfully!'
     );
-  };
+  }
 
-  /* =========================
-     INITIALIZE
-     ========================= */
+
+  /* =======================================================
+     START
+     ======================================================= */
 
   if (
     document.readyState === 'loading'
@@ -849,13 +931,13 @@
 
     document.addEventListener(
       'DOMContentLoaded',
-      init,
+      initWhackATrack,
       { once: true }
     );
 
   } else {
 
-    init();
+    initWhackATrack();
   }
 
 })();
