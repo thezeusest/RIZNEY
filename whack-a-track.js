@@ -29,7 +29,7 @@
 
     const panel = document.createElement("section");
     panel.id = "whack-a-track-game";
-    panel.setAttribute("aria-label", "Whack-a-Track mini-game");
+    panel.setAttribute("aria-label", "Whack-a-Track");
 
     panel.innerHTML = `
       <h2>Whack-a-Track</h2>
