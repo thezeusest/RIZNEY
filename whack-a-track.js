@@ -6,6 +6,8 @@
   const MOLE_VISIBLE_MS = 460;
   const MOLE_INTERVAL_MS = 1400;
   const youtube = () => window.rizneyPlayer || window.player || null;
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const controls = () => $(".controls");
   let game;
   let active = false;
   let trackHealth = TRACK_HEALTH;
@@ -14,11 +16,8 @@
   let hideTimer;
   let gameTimer;
 
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const controls = () => $(".controls");
-
   // Keep the toolbar attached to the bottom edge of the sticky player dock.
-  // It remains visible while browsing the song list.
+  // Cards should not hide it; Whack-a-Track hides it only while its game panel is open.
   function setToolbarHidden(hidden) {
     controls()?.classList.toggle("toolbar-hidden", hidden);
   }
@@ -46,24 +45,26 @@
     document.head.appendChild(style);
     positionToolbar();
     window.addEventListener("resize", positionToolbar, { passive: true });
-    if (window.ResizeObserver) new ResizeObserver(positionToolbar).observe($(".player-dock"));
+    if (window.ResizeObserver) {
+      const dock = $(".player-dock");
+      if (dock) new ResizeObserver(positionToolbar).observe(dock);
+    }
 
-    // Keep CARDS immediately to the left of Whack-A-Track regardless of the
-    // order in the HTML, while leaving the skip buttons at the ends.
+    // Keep CARDS immediately to the left of Whack-A-Track regardless of HTML order.
     const cardsButton = $("#draw-cards");
     const whackButton = $("#whack-track");
     if (cardsButton && whackButton) whackButton.parentElement.insertBefore(cardsButton, whackButton);
 
-    const reading = $("#reading");
-    if (reading) new MutationObserver(() => setToolbarHidden(!reading.hidden)).observe(reading, { attributes: true, attributeFilter: ["hidden"] });
+    // Do not observe #reading here: opening CARDS must leave the toolbar visible.
+    setToolbarHidden(false);
 
     // CARDS is a toggle: pressing it again closes the reading panel.
+    const reading = $("#reading");
     cardsButton?.addEventListener("click", event => {
       if (!reading || reading.hidden) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       reading.hidden = true;
-      setToolbarHidden(false);
     }, true);
   }
 
@@ -75,7 +76,6 @@
 
   function createGame() {
     if (game) return game;
-
     const panel = document.createElement("section");
     panel.id = "whack-a-track-game";
     panel.setAttribute("aria-label", "Whack-a-Track");
@@ -125,76 +125,100 @@
     $("#wat-refresh", panel).addEventListener("click", () => window.location.reload());
     ($(".player-dock") || $("main") || document.body).insertAdjacentElement("afterend", panel);
     panel.hidden = true;
-    new MutationObserver(() => setToolbarHidden(!panel.hidden)).observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+    // The toolbar follows the game panel only. It returns as soon as the panel closes.
+    new MutationObserver(() => setToolbarHidden(!panel.hidden)).observe(panel, {
+      attributes: true, attributeFilter: ["hidden"]
+    });
     game = { panel, board, status: $("#wat-status", panel) };
     return game;
   }
 
   function hideMoles() {
-    game.board.querySelectorAll(".wat-hole").forEach(hole => { hole.dataset.active = "false"; hole.textContent = "🕳️"; });
+    game.board.querySelectorAll(".wat-hole").forEach(hole => {
+      hole.dataset.active = "false";
+      hole.textContent = "🕳️";
+    });
   }
 
   function spawnMole() {
     if (!active) return;
     const holes = [...game.board.querySelectorAll(".wat-hole")];
     const hole = holes[Math.floor(Math.random() * holes.length)];
-    hideMoles(); hole.dataset.active = "true"; hole.textContent = "🐭";
+    hideMoles();
+    hole.dataset.active = "true";
+    hole.textContent = "🐭";
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { if (hole.dataset.active === "true") hole.textContent = "🕳️"; hole.dataset.active = "false"; }, MOLE_VISIBLE_MS);
+    hideTimer = setTimeout(() => {
+      if (hole.dataset.active === "true") hole.textContent = "🕳️";
+      hole.dataset.active = "false";
+    }, MOLE_VISIBLE_MS);
     moleTimer = setTimeout(spawnMole, MOLE_INTERVAL_MS);
   }
 
   function startClock() {
-    clearInterval(gameTimer); secondsLeft = GAME_DURATION; $("#wat-time", game.panel).textContent = secondsLeft;
-    gameTimer = setInterval(() => { if (!active) return; secondsLeft--; $("#wat-time", game.panel).textContent = secondsLeft; if (secondsLeft <= 0) finish(false); }, 1000);
-  }
-
-  function dramaticWin() {
-    const burst = document.createElement("div");
-    burst.setAttribute("role", "status");
-    burst.innerHTML = `<strong>💥 TRACK DESTROYED! 💥</strong><span>Congratulations, you obliterated that song!</span>`;
-    Object.assign(burst.style, { position: "fixed", inset: "0", zIndex: "100", display: "grid", placeContent: "center", gap: "16px", padding: "24px", textAlign: "center", color: "#f5d76e", background: "rgba(0,0,0,.9)", fontSize: "clamp(1.5rem, 5vw, 3rem)", animation: "wat-win .25s ease-out" });
-    burst.querySelector("span").style.fontSize = "clamp(1rem, 3vw, 1.5rem)";
-    const style = document.createElement("style"); style.textContent = `@keyframes wat-win{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}`; document.head.appendChild(style);
-    document.body.appendChild(burst); setTimeout(() => burst.remove(), 1900);
-  }
-
-  function removeDefeatedTrackAndAdvance() {
-    const rows = [...document.querySelectorAll("#song-list .song")];
-    const now = $("#now-playing")?.textContent || "";
-    const match = now.match(/Song\s+(\d+)/i);
-    const defeatedPosition = match ? Number(match[1]) - 1 : -1;
-    const defeatedRow = defeatedPosition >= 0 ? rows[defeatedPosition] : null;
-    if (!defeatedRow) return;
-    defeatedRow.remove();
-    const remaining = [...document.querySelectorAll("#song-list .song")];
-    const nextRow = remaining[defeatedPosition] || remaining[defeatedPosition - 1];
-    if (nextRow) nextRow.querySelector(".play")?.click(); else $("#now-playing").textContent = "You destroyed the entire collection ✦";
-  }
-
-  function startGame(event) {
-    event?.preventDefault(); event?.stopImmediatePropagation(); game = createGame();
-    clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); $("#wat-refresh", game.panel).hidden = true;
-    if (!playing()) { active = false; game.status.textContent = "Play a track to start the game, then pause it to remove from playlist"; game.panel.hidden = false; game.panel.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
-    trackHealth = TRACK_HEALTH; active = true; game.panel.hidden = false; $("#wat-health", game.panel).value = trackHealth; hideMoles(); game.status.textContent = "Whack every mouse before the clock runs out!"; startClock(); spawnMole();
+    clearInterval(gameTimer);
+    secondsLeft = GAME_DURATION;
+    $("#wat-time", game.panel).textContent = secondsLeft;
+    gameTimer = setInterval(() => {
+      if (!active) return;
+      secondsLeft--;
+      $("#wat-time", game.panel).textContent = secondsLeft;
+      if (secondsLeft <= 0) finish(false);
+    }, 1000);
   }
 
   function finish(won) {
-    if (!active) return; active = false; clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); hideMoles();
-    if (won) { game.status.textContent = "💥 TRACK WHACKED! Removing it from the playlist…"; dramaticWin(); removeDefeatedTrackAndAdvance(); } else game.status.textContent = "The track survived. Try again!";
+    if (!active) return;
+    active = false;
+    clearTimeout(moleTimer);
+    clearTimeout(hideTimer);
+    clearInterval(gameTimer);
+    hideMoles();
+    game.status.textContent = won ? "💥 TRACK WHACKED!" : "The track survived. Try again!";
   }
 
   function closeGame() {
-    active = false; clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer);
-    if (game) { hideMoles(); game.panel.hidden = true; }
+    active = false;
+    clearTimeout(moleTimer);
+    clearTimeout(hideTimer);
+    clearInterval(gameTimer);
+    if (game) game.panel.hidden = true;
+  }
+
+  function startGame(event) {
+    event?.preventDefault();
+    event?.stopImmediatePropagation();
+    game = createGame();
+    clearTimeout(moleTimer);
+    clearTimeout(hideTimer);
+    clearInterval(gameTimer);
+    $("#wat-refresh", game.panel).hidden = true;
+    game.panel.hidden = false;
+    if (!playing()) {
+      active = false;
+      game.status.textContent = "Play a track to start the game, then pause it to remove from playlist";
+      game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    trackHealth = TRACK_HEALTH;
+    active = true;
+    $("#wat-health", game.panel).value = trackHealth;
+    hideMoles();
+    game.status.textContent = "Whack every mouse before the clock runs out!";
+    startClock();
+    spawnMole();
+    game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function init() {
     setupToolbar();
     const button = $("#whack-track");
     if (!button || button.dataset.whackGameBound === "true") return;
-    button.dataset.whackGameBound = "true"; Object.assign(button.style, { cursor: "pointer" }); button.addEventListener("click", startGame);
+    button.dataset.whackGameBound = "true";
+    Object.assign(button.style, { cursor: "pointer" });
+    button.addEventListener("click", startGame);
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true }); else init();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();
