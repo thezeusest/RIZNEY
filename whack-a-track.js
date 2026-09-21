@@ -18,7 +18,7 @@
   const controls = () => $(".controls");
 
   // Keep the toolbar attached to the bottom edge of the sticky player dock.
-  // It is hidden while either expandable panel is open so it cannot cover it.
+  // It remains visible while browsing the song list.
   function setToolbarHidden(hidden) {
     controls()?.classList.toggle("toolbar-hidden", hidden);
   }
@@ -48,8 +48,13 @@
     window.addEventListener("resize", positionToolbar, { passive: true });
     if (window.ResizeObserver) new ResizeObserver(positionToolbar).observe($(".player-dock"));
 
-    const reading = $("#reading");
+    // Keep CARDS immediately to the left of Whack-A-Track regardless of the
+    // order in the HTML, while leaving the skip buttons at the ends.
     const cardsButton = $("#draw-cards");
+    const whackButton = $("#whack-track");
+    if (cardsButton && whackButton) whackButton.parentElement.insertBefore(cardsButton, whackButton);
+
+    const reading = $("#reading");
     if (reading) new MutationObserver(() => setToolbarHidden(!reading.hidden)).observe(reading, { attributes: true, attributeFilter: ["hidden"] });
 
     // CARDS is a toggle: pressing it again closes the reading panel.
@@ -148,7 +153,7 @@
     const burst = document.createElement("div");
     burst.setAttribute("role", "status");
     burst.innerHTML = `<strong>💥 TRACK DESTROYED! 💥</strong><span>Congratulations, you obliterated that song!</span>`;
-    Object.assign(burst.style, { position: "fixed", inset: "0", zIndex: "100", display: "grid", placeContent: "center", gap: "16px", padding: "24px", textAlign: "center", color: "#f5d76e", background: "radial-gradient(circle, rgba(192,132,252,.35), rgba(0,0,0,.94) 65%)", fontSize: "clamp(1.4rem, 5vw, 3.2rem)", textShadow: "0 0 18px #d4af37", animation: "wat-win .35s ease-out" });
+    Object.assign(burst.style, { position: "fixed", inset: "0", zIndex: "100", display: "grid", placeContent: "center", gap: "16px", padding: "24px", textAlign: "center", color: "#f5d76e", background: "rgba(0,0,0,.9)", fontSize: "clamp(1.5rem, 5vw, 3rem)", animation: "wat-win .25s ease-out" });
     burst.querySelector("span").style.fontSize = "clamp(1rem, 3vw, 1.5rem)";
     const style = document.createElement("style"); style.textContent = `@keyframes wat-win{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}`; document.head.appendChild(style);
     document.body.appendChild(burst); setTimeout(() => burst.remove(), 1900);
@@ -170,8 +175,8 @@
   function startGame(event) {
     event?.preventDefault(); event?.stopImmediatePropagation(); game = createGame();
     clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); $("#wat-refresh", game.panel).hidden = true;
-    if (!playing()) { active = false; game.status.textContent = "Play a track to start the game, then pause it to remove from playlist"; game.panel.hidden = false; game.panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
-    trackHealth = TRACK_HEALTH; active = true; game.panel.hidden = false; $("#wat-health", game.panel).value = trackHealth; hideMoles(); game.status.textContent = "Whack every mouse before the clock runs out!"; startClock(); spawnMole(); game.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!playing()) { active = false; game.status.textContent = "Play a track to start the game, then pause it to remove from playlist"; game.panel.hidden = false; game.panel.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    trackHealth = TRACK_HEALTH; active = true; game.panel.hidden = false; $("#wat-health", game.panel).value = trackHealth; hideMoles(); game.status.textContent = "Whack every mouse before the clock runs out!"; startClock(); spawnMole();
   }
 
   function finish(won) {
