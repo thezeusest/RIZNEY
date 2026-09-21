@@ -1,1833 +1,1069 @@
 /* =========================================================
-   TORTOISE FROGGER 🐢
-   RIZNEY / MEWZING MUSIC PAGE
+TORTOISE FROGGER
 
-   FOUR-DIRECTION VERSION
-
-   🐢 Above tortoise  = UP
-   🐢 Below tortoise  = DOWN
-   🐢 Left of tortoise = LEFT
-   🐢 Right of tortoise = RIGHT
-
-   🐢 One tap = one movement
-   🐢 NO hop
-   🐢 NO bounce
-   🐢 NO sliding animation
-   🚗 Slower / easier traffic
-   🚗 No traffic before game starts
-   🛣️ Bottom street is always safe
-   💥 Hit = return to bottom
-   🎵 Timer continues after hit
-   🔄 Restart Song = fresh game
-   ✕ End Game = everything stops
-   ========================================================= */
+- Tortoise hidden until game starts
+- 4-direction tap controls
+- Traffic only appears during the game
+- Hit = knocked back 10 rows
+- Knocked tortoise lands upside down
+- While upside down, tortoise cannot move
+- Another traffic object must hit him to flip him upright
+- Bottom row is always safe
+  ========================================================= */
 
 (() => {
-  'use strict';
+'use strict';
 
-  if (document.getElementById('tortoise-frogger')) return;
+if (window.__tortoiseFroggerLoaded) return;
+window.__tortoiseFroggerLoaded = true;
 
-  function init() {
+const init = () => {
 
-    if (document.getElementById('tortoise-frogger')) return;
+const songList =
+  document.querySelector('#song-list') ||
+  document.querySelector('.song-list');
 
-    /* =====================================================
-       FIND SONG ROWS
-       ===================================================== */
+if (!songList) return;
 
-    let rows = Array.from(
-      document.querySelectorAll('#song-list .song')
+const rows = Array.from(
+  songList.querySelectorAll('.song')
+);
+
+if (!rows.length) return;
+
+/* -----------------------------------------------------
+   FOOTER
+   ----------------------------------------------------- */
+
+const footer = document.createElement('div');
+footer.id = 'tortoise-frogger';
+
+footer.innerHTML = `
+  <div id="frogger-status">🐢 FROGGER</div>
+  <div id="frogger-timer">TIME: --:--</div>
+
+  <div id="frogger-buttons">
+    <button id="frogger-start">FROGGER</button>
+    <button id="frogger-restart">RESTART SONG</button>
+    <button id="frogger-end">END GAME</button>
+  </div>
+`;
+
+document.body.appendChild(footer);
+
+
+/* -----------------------------------------------------
+   STYLES
+   ----------------------------------------------------- */
+
+const style = document.createElement('style');
+
+style.textContent = `
+  #tortoise-frogger {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 10px 20px;
+    margin-top: 18px;
+    text-align: center;
+    z-index: 9999;
+  }
+
+  #frogger-status {
+    color: #f2b84b;
+    font-weight: bold;
+    font-size: 15px;
+    margin-bottom: 5px;
+  }
+
+  #frogger-timer {
+    color: #ffffff;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  #frogger-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  #frogger-buttons button {
+    border: 1px solid #f2b84b;
+    background: #1d1028;
+    color: #f2b84b;
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  #frogger-buttons button:active {
+    transform: scale(.96);
+  }
+
+  #tortoise-frogger-piece {
+    position: absolute;
+    z-index: 9998;
+
+    font-size: 31px;
+    line-height: 1;
+
+    pointer-events: none;
+    user-select: none;
+
+    transition: none !important;
+    animation: none !important;
+
+    display: none;
+  }
+`;
+
+document.head.appendChild(style);
+
+
+/* -----------------------------------------------------
+   MAKE SONG LIST A POSITIONING AREA
+   ----------------------------------------------------- */
+
+const listParent = songList;
+
+if (getComputedStyle(listParent).position === 'static') {
+  listParent.style.position = 'relative';
+}
+
+
+/* -----------------------------------------------------
+   TORTOISE
+   ----------------------------------------------------- */
+
+const tortoise = document.createElement('div');
+
+tortoise.id = 'tortoise-frogger-piece';
+tortoise.textContent = '🐢';
+
+listParent.appendChild(tortoise);
+
+
+/* -----------------------------------------------------
+   GAME STATE
+   ----------------------------------------------------- */
+
+let gameActive = false;
+
+let position = rows.length - 1;
+
+let horizontalPosition = 50;
+
+let timerSeconds = 180;
+let timerInterval = null;
+
+let moving = false;
+
+let upsideDown = false;
+
+let lastHitObstacle = null;
+
+let collisionCooldownUntil = 0;
+
+const HORIZONTAL_STEP = 12;
+
+const MIN_X = 8;
+const MAX_X = 92;
+
+const MOVE_LOCK = 170;
+
+const KNOCKBACK_ROWS = 10;
+
+
+/* -----------------------------------------------------
+   BASIC HELPERS
+   ----------------------------------------------------- */
+
+const formatTime = seconds => {
+  seconds = Math.max(0, Math.floor(seconds));
+
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  return (
+    String(minutes).padStart(2, '0') +
+    ':' +
+    String(secs).padStart(2, '0')
+  );
+};
+
+
+const setStatus = text => {
+  const status = document.getElementById('frogger-status');
+
+  if (status) {
+    status.textContent = text;
+  }
+};
+
+
+const updateTimerDisplay = () => {
+  const timer = document.getElementById('frogger-timer');
+
+  if (timer) {
+    timer.textContent = 'TIME: ' + formatTime(timerSeconds);
+  }
+};
+
+
+/* -----------------------------------------------------
+   PLACE TORTOISE
+   ----------------------------------------------------- */
+
+const placeTortoise = () => {
+
+  if (!rows[position]) return;
+
+  const row = rows[position];
+
+  const parentRect = listParent.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+
+  const tortoiseWidth =
+    tortoise.getBoundingClientRect().width || 31;
+
+  const left =
+    (listParent.clientWidth * horizontalPosition / 100) -
+    (tortoiseWidth / 2);
+
+  const top =
+    rowRect.top -
+    parentRect.top +
+    (rowRect.height / 2) -
+    16;
+
+  tortoise.style.left = `${left}px`;
+  tortoise.style.top = `${top}px`;
+
+  tortoise.style.transform =
+    upsideDown ? 'rotate(180deg)' : 'none';
+};
+
+
+/* -----------------------------------------------------
+   CAMERA
+   ----------------------------------------------------- */
+
+const moveCameraToCurrentStreet = (down = false) => {
+
+  if (!rows[position]) return;
+
+  const row = rows[position];
+
+  const rect = row.getBoundingClientRect();
+
+  const targetY =
+    window.scrollY +
+    rect.top -
+    (window.innerHeight * 0.55);
+
+  window.scrollTo({
+    top: Math.max(0, targetY),
+    behavior: 'smooth'
+  });
+};
+
+
+/* -----------------------------------------------------
+   MOVE UP
+   ----------------------------------------------------- */
+
+const moveUp = () => {
+
+  if (!gameActive || upsideDown || moving) return;
+
+  if (position <= 0) return;
+
+  moving = true;
+
+  position--;
+
+  placeTortoise();
+
+  moveCameraToCurrentStreet();
+
+  setTimeout(() => {
+    moving = false;
+  }, MOVE_LOCK);
+};
+
+
+/* -----------------------------------------------------
+   MOVE DOWN
+   ----------------------------------------------------- */
+
+const moveDown = () => {
+
+  if (!gameActive || upsideDown || moving) return;
+
+  if (position >= rows.length - 1) return;
+
+  moving = true;
+
+  position++;
+
+  placeTortoise();
+
+  moveCameraToCurrentStreet(true);
+
+  setTimeout(() => {
+    moving = false;
+  }, MOVE_LOCK);
+};
+
+
+/* -----------------------------------------------------
+   MOVE LEFT
+   ----------------------------------------------------- */
+
+const moveLeft = () => {
+
+  if (!gameActive || upsideDown || moving) return;
+
+  moving = true;
+
+  horizontalPosition =
+    Math.max(
+      MIN_X,
+      horizontalPosition - HORIZONTAL_STEP
     );
 
-    if (!rows.length) {
-      rows = Array.from(
-        document.querySelectorAll('.song')
-      );
+  placeTortoise();
+
+  setTimeout(() => {
+    moving = false;
+  }, MOVE_LOCK);
+};
+
+
+/* -----------------------------------------------------
+   MOVE RIGHT
+   ----------------------------------------------------- */
+
+const moveRight = () => {
+
+  if (!gameActive || upsideDown || moving) return;
+
+  moving = true;
+
+  horizontalPosition =
+    Math.min(
+      MAX_X,
+      horizontalPosition + HORIZONTAL_STEP
+    );
+
+  placeTortoise();
+
+  setTimeout(() => {
+    moving = false;
+  }, MOVE_LOCK);
+};
+
+
+/* -----------------------------------------------------
+   TAP CONTROL
+   ----------------------------------------------------- */
+
+const handleGameTap = (clientX, clientY) => {
+
+  if (!gameActive || upsideDown) return;
+
+  const rect =
+    tortoise.getBoundingClientRect();
+
+  const centerX =
+    rect.left + rect.width / 2;
+
+  const centerY =
+    rect.top + rect.height / 2;
+
+  const dx = clientX - centerX;
+  const dy = clientY - centerY;
+
+  const deadZone = 18;
+
+  if (
+    Math.abs(dx) < deadZone &&
+    Math.abs(dy) < deadZone
+  ) {
+    return;
+  }
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+
+    if (dx < 0) {
+      moveLeft();
+    } else {
+      moveRight();
     }
 
-    if (rows.length < 2) {
-      console.warn(
-        'Tortoise Frogger: Not enough song rows found.'
-      );
+  } else {
+
+    if (dy < 0) {
+      moveUp();
+    } else {
+      moveDown();
+    }
+  }
+};
+
+
+/* -----------------------------------------------------
+   PAGE TAP LISTENER
+   ----------------------------------------------------- */
+
+document.addEventListener(
+  'pointerup',
+  event => {
+
+    if (!gameActive || upsideDown) return;
+
+    const target = event.target;
+
+    if (
+      target &&
+      target.closest &&
+      (
+        target.closest('#tortoise-frogger') ||
+        target.closest('button') ||
+        target.closest('a') ||
+        target.closest('input') ||
+        target.closest('textarea') ||
+        target.closest('select') ||
+        target.closest('iframe') ||
+        target.closest('video') ||
+        target.closest('audio')
+      )
+    ) {
       return;
     }
 
-    /* =====================================================
-       GAME STATE
-       ===================================================== */
-
-    let active = false;
-    let gameOver = false;
-
-    /*
-      Vertical position.
-      Bottom row = rows.length - 1
-      Top row = 0
-    */
-
-    let position =
-      rows.length - 1;
-
-    /*
-      Horizontal position as a percentage
-      of the song-list width.
-
-      50 = center.
-    */
-
-    let horizontalPosition = 50;
-
-    let moving = false;
-
-    let timer = null;
-
-    let timeLeft = 0;
-
-    let songStartedAt = 0;
-
-    /*
-      This is ONLY an input lock.
-      It is NOT an animation.
-    */
-
-    const MOVE_LOCK = 170;
-
-    const DEFAULT_SONG_TIME = 180;
-
-    /*
-      How far the tortoise moves left/right
-      with one tap.
-    */
-
-    const HORIZONTAL_STEP = 12;
-
-    /*
-      Keep the tortoise away from the
-      extreme edges.
-    */
-
-    const MIN_X = 8;
-    const MAX_X = 92;
-
-    /* =====================================================
-       FOOTER / CONTROLS
-       ===================================================== */
-
-    const footer =
-      document.createElement('div');
-
-    footer.id =
-      'tortoise-frogger';
-
-    footer.innerHTML = `
-      <div id="tf-status">
-        🐢 READY — PRESS FROGGER
-      </div>
-
-      <div id="tf-timer">
-        0:00
-      </div>
-
-      <div id="tf-controls">
-
-        <button id="tf-start" type="button">
-          🐢 FROGGER
-        </button>
-
-        <button id="tf-restart" type="button">
-          🔄 RESTART SONG
-        </button>
-
-        <button id="tf-end" type="button">
-          ✕ END GAME
-        </button>
-
-      </div>
-    `;
-
-    /*
-      IMPORTANT:
-
-      Controls stay at the VERY BOTTOM
-      of the page.
-    */
-
-    document.body.appendChild(
-      footer
+    handleGameTap(
+      event.clientX,
+      event.clientY
     );
+  },
+  true
+);
 
-    /* =====================================================
-       CSS
-       ===================================================== */
 
-    const style =
-      document.createElement('style');
+/* -----------------------------------------------------
+   TRAFFIC
+   ----------------------------------------------------- */
 
-    style.textContent = `
+let traffic = [];
 
-      #tortoise-frogger {
-        position: relative;
+const removeTraffic = () => {
 
-        z-index: 99999;
+  traffic.forEach(item => {
 
-        width: 100%;
+    if (item.element &&
+        item.element.parentNode) {
 
-        box-sizing: border-box;
-
-        padding:
-          12px
-          10px
-          18px;
-
-        margin-top:
-          20px;
-
-        background:
-          linear-gradient(
-            to bottom,
-            #120b18,
-            #080509
-          );
-
-        border-top:
-          2px solid #d69a2d;
-
-        box-shadow:
-          0 -4px 18px
-          rgba(0,0,0,.45);
-
-        text-align:
-          center;
-
-        font-family:
-          Arial,
-          sans-serif;
-      }
-
-      #tf-status {
-        color:
-          #d69a2d;
-
-        font-size:
-          13px;
-
-        font-weight:
-          bold;
-
-        letter-spacing:
-          1px;
-
-        margin-bottom:
-          5px;
-      }
-
-      #tf-timer {
-        color:
-          #fff;
-
-        font-size:
-          24px;
-
-        font-weight:
-          bold;
-
-        margin-bottom:
-          9px;
-
-        font-variant-numeric:
-          tabular-nums;
-      }
-
-      #tf-controls {
-        display:
-          flex;
-
-        justify-content:
-          center;
-
-        align-items:
-          center;
-
-        gap:
-          7px;
-
-        flex-wrap:
-          wrap;
-      }
-
-      #tf-controls button {
-
-        border:
-          1px solid #d69a2d;
-
-        background:
-          #1d1028;
-
-        color:
-          #f0c56a;
-
-        border-radius:
-          7px;
-
-        padding:
-          9px 11px;
-
-        font-size:
-          12px;
-
-        font-weight:
-          bold;
-
-        cursor:
-          pointer;
-
-        touch-action:
-          manipulation;
-      }
-
-      #tf-controls button:active {
-        transform:
-          scale(.96);
-      }
-
-      /*
-        TORTOISE
-
-        No transition.
-        No animation.
-        It simply appears
-        at the new position.
-      */
-
-      .tf-tortoise {
-
-        position:
-          absolute;
-
-        z-index:
-          99990;
-
-        font-size:
-          34px;
-
-        line-height:
-          1;
-
-        width:
-          40px;
-
-        height:
-          40px;
-
-        display:
-          flex;
-
-        align-items:
-          center;
-
-        justify-content:
-          center;
-
-        pointer-events:
-          none;
-
-        user-select:
-          none;
-
-        transform:
-          translate(
-            -50%,
-            -50%
-          );
-
-        transition:
-          none !important;
-
-        animation:
-          none !important;
-
-        filter:
-          drop-shadow(
-            2px 3px 2px
-            rgba(0,0,0,.55)
-          );
-      }
-
-      .tf-obstacle {
-
-        position:
-          absolute;
-
-        z-index:
-          20;
-
-        pointer-events:
-          none;
-
-        user-select:
-          none;
-
-        font-size:
-          25px;
-
-        line-height:
-          1;
-
-        transform:
-          translateY(-50%);
-      }
-
-      .tf-hit-flash {
-        animation:
-          tfHitFlash .35s ease;
-      }
-
-      @keyframes tfHitFlash {
-
-        0% {
-          filter:
-            brightness(1);
-        }
-
-        50% {
-          filter:
-            brightness(2.2);
-        }
-
-        100% {
-          filter:
-            brightness(1);
-        }
-      }
-
-      @media (max-width: 600px) {
-
-        #tf-controls button {
-
-          padding:
-            10px 8px;
-
-          font-size:
-            10px;
-        }
-
-        .tf-tortoise {
-          font-size:
-            32px;
-        }
-      }
-
-    `;
-
-    document.head.appendChild(
-      style
-    );
-
-    /* =====================================================
-       MAKE SONG LIST A POSITIONING AREA
-       ===================================================== */
-
-    const listParent =
-      rows[0].parentElement;
-
-    if (
-      listParent &&
-      getComputedStyle(listParent).position ===
-        'static'
-    ) {
-
-      listParent.style.position =
-        'relative';
+      item.element.remove();
     }
+  });
 
-    /* =====================================================
-       TORTOISE
-       ===================================================== */
+  traffic = [];
+};
 
-    const tortoise =
-      document.createElement('div');
 
-    tortoise.className =
-      'tf-tortoise';
+const createTraffic = () => {
 
-    tortoise.textContent =
-      '🐢';
+  removeTraffic();
 
-    tortoise.setAttribute(
-      'aria-hidden',
-      'true'
-    );
+  /*
+     Bottom row is always safe.
 
-    if (listParent) {
+     Traffic is deliberately sparse so the game
+     stays forgiving.
+  */
 
-      listParent.appendChild(
-        tortoise
-      );
+  rows.forEach((row, index) => {
 
-    } else {
+    if (index === rows.length - 1) return;
 
-      document.body.appendChild(
-        tortoise
-      );
-    }
+    /*
+       Only roughly every other row gets traffic.
+    */
 
-    /* =====================================================
-       CONTROLS
-       ===================================================== */
+    if (index % 2 !== 0) return;
 
-    const startButton =
-      document.getElementById(
-        'tf-start'
-      );
+    const count =
+      Math.random() < 0.18 ? 2 : 1;
 
-    const restartButton =
-      document.getElementById(
-        'tf-restart'
-      );
+    for (let i = 0; i < count; i++) {
 
-    const endButton =
-      document.getElementById(
-        'tf-end'
-      );
+      const obstacle =
+        document.createElement('div');
 
-    const status =
-      document.getElementById(
-        'tf-status'
-      );
+      obstacle.className =
+        'tortoise-frogger-traffic';
 
-    const timerDisplay =
-      document.getElementById(
-        'tf-timer'
-      );
+      obstacle.textContent =
+        Math.random() < 0.5 ? '🚗' : '🚙';
 
-    /* =====================================================
-       HELPERS
-       ===================================================== */
-
-    function setStatus(message) {
-      status.textContent =
-        message;
-    }
-
-    function formatTime(seconds) {
-
-      seconds =
-        Math.max(
-          0,
-          Math.ceil(seconds)
-        );
-
-      const minutes =
-        Math.floor(
-          seconds / 60
-        );
-
-      const secs =
-        seconds % 60;
-
-      return (
-        minutes +
-        ':' +
-        String(secs)
-          .padStart(2, '0')
-      );
-    }
-
-    function setTimer(seconds) {
-
-      timerDisplay.textContent =
-        formatTime(seconds);
-    }
-
-    /* =====================================================
-       PLACE TORTOISE
-       ===================================================== */
-
-    function placeTortoise() {
-
-      const row =
-        rows[position];
-
-      if (!row || !listParent) {
-        return;
-      }
-
-      const rowRect =
-        row.getBoundingClientRect();
+      obstacle.style.position = 'absolute';
+      obstacle.style.zIndex = '9997';
+      obstacle.style.pointerEvents = 'none';
+      obstacle.style.userSelect = 'none';
+      obstacle.style.fontSize = '27px';
+      obstacle.style.lineHeight = '1';
 
       const parentRect =
         listParent.getBoundingClientRect();
 
-      /*
-        Horizontal position.
-      */
-
-      tortoise.style.left =
-        (
-          parentRect.width *
-          horizontalPosition /
-          100
-        ) + 'px';
-
-      /*
-        Vertical position.
-      */
-
-      tortoise.style.top =
-        (
-          rowRect.top -
-          parentRect.top +
-          rowRect.height *
-          0.50
-        ) + 'px';
-    }
-
-    /* =====================================================
-       CAMERA
-       ===================================================== */
-
-    function moveCameraToCurrentStreet(
-      smooth = true
-    ) {
-
-      const row =
-        rows[position];
-
-      if (!row) return;
-
-      const rect =
+      const rowRect =
         row.getBoundingClientRect();
 
-      /*
-        Keep the tortoise toward the lower
-        part of the screen.
+      const rowTop =
+        rowRect.top -
+        parentRect.top +
+        (rowRect.height / 2) -
+        14;
 
-        The tortoise itself does NOT animate.
-      */
+      obstacle.style.top =
+        `${rowTop}px`;
 
-      const targetY =
-        window.innerHeight *
-        0.72;
+      let x =
+        Math.random() * 100;
 
-      const targetScroll =
-        window.scrollY +
-        rect.top -
-        targetY;
+      obstacle.style.left = `${x}%`;
 
-      window.scrollTo({
+      listParent.appendChild(obstacle);
 
-        top:
-          Math.max(
-            0,
-            targetScroll
-          ),
-
-        behavior:
-          smooth
-            ? 'smooth'
-            : 'auto'
+      traffic.push({
+        element: obstacle,
+        rowIndex: index,
+        x: x,
+        speed:
+          0.18 +
+          Math.random() * 0.20,
+        direction:
+          Math.random() < 0.5 ? 1 : -1
       });
     }
+  });
+};
 
-    /* =====================================================
-       RETURN TO BOTTOM
-       ===================================================== */
 
-    function sendToBottom() {
+/* -----------------------------------------------------
+   TRAFFIC ANIMATION
+   ----------------------------------------------------- */
 
-      position =
-        rows.length - 1;
+let trafficAnimation = null;
 
-      horizontalPosition =
-        50;
+const animateTraffic = () => {
 
-      placeTortoise();
-
-      /*
-        Scroll all the way down
-        to the footer.
-      */
-
-      window.scrollTo({
-
-        top:
-          Math.max(
-            0,
-            document.documentElement.scrollHeight -
-            window.innerHeight
-          ),
-
-        behavior:
-          'smooth'
-      });
-
-      const bottomRow =
-        rows[position];
-
-      if (bottomRow) {
-
-        bottomRow.classList.remove(
-          'tf-hit-flash'
-        );
-
-        void bottomRow.offsetWidth;
-
-        bottomRow.classList.add(
-          'tf-hit-flash'
-        );
-      }
-    }
-
-    /* =====================================================
-       YOUTUBE RESTART
-       ===================================================== */
-
-    function restartYouTubeSong() {
-
-      const iframe =
-        document.querySelector(
-          'iframe[src*="youtube.com"], iframe[src*="youtube-nocookie.com"]'
-        );
-
-      if (!iframe) {
-        return false;
-      }
-
-      try {
-
-        iframe.contentWindow.postMessage(
-
-          JSON.stringify({
-            event:
-              'command',
-
-            func:
-              'seekTo',
-
-            args:
-              [0, true]
-          }),
-
-          '*'
-        );
-
-        iframe.contentWindow.postMessage(
-
-          JSON.stringify({
-            event:
-              'command',
-
-            func:
-              'playVideo',
-
-            args:
-              []
-          }),
-
-          '*'
-        );
-
-        return true;
-
-      } catch (error) {
-
-        console.warn(
-          'YouTube restart failed:',
-          error
-        );
-
-        return false;
-      }
-    }
-
-    /* =====================================================
-       SONG DURATION
-       ===================================================== */
-
-    function getSongDuration() {
-
-      const media =
-        document.querySelector(
-          'audio, video'
-        );
-
-      if (
-        media &&
-        isFinite(media.duration) &&
-        media.duration > 0
-      ) {
-
-        return media.duration;
-      }
-
-      return DEFAULT_SONG_TIME;
-    }
-
-    /* =====================================================
-       TIMER
-       ===================================================== */
-
-    function stopTimer() {
-
-      if (timer) {
-
-        clearInterval(timer);
-
-        timer = null;
-      }
-    }
-
-    function startTimer() {
-
-      stopTimer();
-
-      timeLeft =
-        getSongDuration();
-
-      songStartedAt =
-        Date.now();
-
-      setTimer(
-        timeLeft
-      );
-
-      timer =
-        setInterval(
-          () => {
-
-            if (
-              !active ||
-              gameOver
-            ) {
-              return;
-            }
-
-            const elapsed =
-              (
-                Date.now() -
-                songStartedAt
-              ) / 1000;
-
-            timeLeft =
-              Math.max(
-                0,
-                getSongDuration() -
-                elapsed
-              );
-
-            setTimer(
-              timeLeft
-            );
-
-            if (
-              timeLeft <= 0
-            ) {
-
-              loseGame();
-            }
-
-          },
-          250
-        );
-    }
-
-    /* =====================================================
-       TRAFFIC
-       ===================================================== */
-
-    const trafficSymbols = [
-      '🚗',
-      '🚙',
-      '🚕',
-      '🚌',
-      '🎵',
-      '🎸',
-      '💿'
-    ];
-
-    const traffic = [];
-
-    /*
-      REMOVE ALL TRAFFIC
-    */
-
-    function removeTraffic() {
-
-      traffic.forEach(
-        car => {
-
-          if (
-            car.element &&
-            car.element.parentNode
-          ) {
-
-            car.element.remove();
-          }
-        }
-      );
-
-      traffic.length = 0;
-    }
-
-    /*
-      CREATE TRAFFIC
-
-      This version is deliberately easier:
-
-      - fewer objects
-      - slower objects
-      - bigger gaps
-    */
-
-    function createTraffic() {
-
-      removeTraffic();
-
-      rows.forEach(
-        (row, index) => {
-
-          /*
-            Bottom row is SAFE.
-          */
-
-          if (
-            index ===
-            rows.length - 1
-          ) {
-            return;
-          }
-
-          /*
-            Only about 1 out of every
-            2 rows gets traffic.
-
-            This makes the game much
-            less punishing.
-          */
-
-          if (
-            index % 2 !== 0 &&
-            Math.random() < 0.55
-          ) {
-            return;
-          }
-
-          if (
-            getComputedStyle(row).position ===
-            'static'
-          ) {
-
-            row.style.position =
-              'relative';
-          }
-
-          /*
-            Usually one object.
-
-            Occasionally two.
-          */
-
-          const count =
-            Math.random() < 0.18
-              ? 2
-              : 1;
-
-          for (
-            let i = 0;
-            i < count;
-            i++
-          ) {
-
-            const obstacle =
-              document.createElement(
-                'div'
-              );
-
-            obstacle.className =
-              'tf-obstacle';
-
-            obstacle.textContent =
-              trafficSymbols[
-                Math.floor(
-                  Math.random() *
-                  trafficSymbols.length
-                )
-              ];
-
-            /*
-              Start with generous
-              spacing.
-            */
-
-            const startingX =
-              i === 0
-                ? Math.random() * 70 + 15
-                : Math.random() * 20;
-
-            obstacle.style.left =
-              startingX + '%';
-
-            obstacle.style.top =
-              '50%';
-
-            const direction =
-              i % 2 === 0
-                ? 1
-                : -1;
-
-            /*
-              SLOWER than before.
-            */
-
-            const speed =
-              0.18 +
-              Math.random() *
-              0.20;
-
-            row.appendChild(
-              obstacle
-            );
-
-            traffic.push({
-
-              element:
-                obstacle,
-
-              x:
-                startingX,
-
-              direction:
-                direction,
-
-              speed:
-                speed
-
-            });
-          }
-        }
-      );
-    }
-
-    /* =====================================================
-       TRAFFIC ANIMATION
-       ===================================================== */
-
-    let lastFrame =
-      performance.now();
-
-    function animateTraffic(now) {
-
-      const delta =
-        Math.min(
-          40,
-          now - lastFrame
-        );
-
-      lastFrame =
-        now;
-
-      if (
-        active &&
-        !gameOver
-      ) {
-
-        traffic.forEach(
-          car => {
-
-            let x =
-              car.x;
-
-            x +=
-              car.direction *
-              car.speed *
-              delta *
-              0.055;
-
-            if (
-              x > 110
-            ) {
-
-              x = -15;
-            }
-
-            if (
-              x < -15
-            ) {
-
-              x = 110;
-            }
-
-            car.x =
-              x;
-
-            car.element.style.left =
-              x + '%';
-          }
-        );
-
-        /*
-          Check collision only
-          when the tortoise isn't
-          currently being moved.
-        */
-
-        if (
-          !moving &&
-          checkCollision()
-        ) {
-
-          handleHit();
-        }
-      }
-
-      requestAnimationFrame(
-        animateTraffic
-      );
-    }
-
-    requestAnimationFrame(
-      animateTraffic
-    );
-
-    /* =====================================================
-       COLLISION
-       ===================================================== */
-
-    function checkCollision() {
-
-      /*
-        Bottom street is always safe.
-      */
-
-      if (
-        position ===
-        rows.length - 1
-      ) {
-
-        return false;
-      }
-
-      const row =
-        rows[position];
-
-      if (!row) {
-        return false;
-      }
-
-      const tortoiseRect =
-        tortoise.getBoundingClientRect();
-
-      const obstacles =
-        row.querySelectorAll(
-          '.tf-obstacle'
-        );
-
-      for (
-        const obstacle
-        of obstacles
-      ) {
-
-        const rect =
-          obstacle.getBoundingClientRect();
-
-        /*
-          Smaller collision box.
-          Makes the game forgiving.
-        */
-
-        const padding = 9;
-
-        const hit =
-          tortoiseRect.left +
-            padding <
-            rect.right &&
-
-          tortoiseRect.right -
-            padding >
-            rect.left &&
-
-          tortoiseRect.top +
-            padding <
-            rect.bottom &&
-
-          tortoiseRect.bottom -
-            padding >
-            rect.top;
-
-        if (hit) {
-          return true;
-        }
-      }
-
-      return false;
-    }
-
-    /* =====================================================
-       HIT
-       ===================================================== */
-
-    function handleHit() {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      moving = true;
-
-      setStatus(
-        '💥 BONK! BACK TO THE BOTTOM!'
-      );
-
-      setTimeout(
-        () => {
-
-          sendToBottom();
-
-          moving = false;
-
-          if (
-            active &&
-            !gameOver
-          ) {
-
-            setStatus(
-              '🐢 TRY AGAIN!'
-            );
-          }
-
-        },
-        250
-      );
-    }
-
-    /* =====================================================
-       MOVE UP
-       ===================================================== */
-
-    function moveUp() {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      if (
-        position === 0
-      ) {
-
-        winGame();
-
-        return;
-      }
-
-      moving = true;
-
-      position =
-        position - 1;
-
-      placeTortoise();
-
-      moveCameraToCurrentStreet(
-        true
-      );
-
-      setStatus(
-        '🐢 UP!'
-      );
-
-      releaseMovement();
-    }
-
-    /* =====================================================
-       MOVE DOWN
-       ===================================================== */
-
-    function moveDown() {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      /*
-        Don't allow movement beyond
-        the bottom street.
-      */
-
-      if (
-        position >=
-        rows.length - 1
-      ) {
-        return;
-      }
-
-      moving = true;
-
-      position =
-        position + 1;
-
-      placeTortoise();
-
-      moveCameraToCurrentStreet(
-        true
-      );
-
-      setStatus(
-        '🐢 DOWN!'
-      );
-
-      releaseMovement();
-    }
-
-    /* =====================================================
-       MOVE LEFT
-       ===================================================== */
-
-    function moveLeft() {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      if (
-        horizontalPosition <=
-        MIN_X
-      ) {
-        return;
-      }
-
-      moving = true;
-
-      horizontalPosition =
-        Math.max(
-          MIN_X,
-          horizontalPosition -
-          HORIZONTAL_STEP
-        );
-
-      placeTortoise();
-
-      setStatus(
-        '🐢 LEFT!'
-      );
-
-      releaseMovement();
-    }
-
-    /* =====================================================
-       MOVE RIGHT
-       ===================================================== */
-
-    function moveRight() {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      if (
-        horizontalPosition >=
-        MAX_X
-      ) {
-        return;
-      }
-
-      moving = true;
-
-      horizontalPosition =
-        Math.min(
-          MAX_X,
-          horizontalPosition +
-          HORIZONTAL_STEP
-        );
-
-      placeTortoise();
-
-      setStatus(
-        '🐢 RIGHT!'
-      );
-
-      releaseMovement();
-    }
-
-    /* =====================================================
-       MOVEMENT LOCK
-       ===================================================== */
-
-    function releaseMovement() {
-
-      /*
-        Again:
-
-        This is NOT an animation.
-
-        It simply prevents accidental
-        double-taps.
-      */
-
-      setTimeout(
-        () => {
-
-          moving = false;
-
-          if (
-            position === 0
-          ) {
-
-            winGame();
-          }
-
-        },
-        MOVE_LOCK
-      );
-    }
-
-    /* =====================================================
-       DETERMINE DIRECTION FROM TAP
-       ===================================================== */
-
-    function handleGameTap(
-      clientX,
-      clientY
-    ) {
-
-      if (
-        !active ||
-        gameOver ||
-        moving
-      ) {
-        return;
-      }
-
-      /*
-        Ignore the game footer.
-      */
-
-      const footerRect =
-        footer.getBoundingClientRect();
-
-      if (
-        clientY >= footerRect.top
-      ) {
-        return;
-      }
-
-      /*
-        Get tortoise's actual screen
-        position.
-      */
-
-      const tortoiseRect =
-        tortoise.getBoundingClientRect();
-
-      const tortoiseCenterX =
-        tortoiseRect.left +
-        tortoiseRect.width / 2;
-
-      const tortoiseCenterY =
-        tortoiseRect.top +
-        tortoiseRect.height / 2;
-
-      const dx =
-        clientX -
-        tortoiseCenterX;
-
-      const dy =
-        clientY -
-        tortoiseCenterY;
-
-      /*
-        Require a little distance
-        so accidentally touching the
-        tortoise doesn't cause movement.
-      */
-
-      const deadZone = 18;
-
-      if (
-        Math.abs(dx) < deadZone &&
-        Math.abs(dy) < deadZone
-      ) {
-        return;
-      }
-
-      /*
-        Whichever direction is stronger
-        determines the movement.
-
-        So:
-
-        TAP ABOVE  → UP
-        TAP BELOW  → DOWN
-        TAP LEFT   → LEFT
-        TAP RIGHT  → RIGHT
-      */
-
-      if (
-        Math.abs(dx) >
-        Math.abs(dy)
-      ) {
-
-        if (dx < 0) {
-          moveLeft();
-        } else {
-          moveRight();
-        }
-
-      } else {
-
-        if (dy < 0) {
-          moveUp();
-        } else {
-          moveDown();
-        }
-      }
-    }
-
-    /* =====================================================
-       START GAME
-       ===================================================== */
-
-    function startGame() {
-
-      active = true;
-
-      gameOver = false;
-
-      moving = false;
-
-      position =
-        rows.length - 1;
-
-      horizontalPosition =
-        50;
-
-      /*
-        No old traffic.
-      */
-
-      removeTraffic();
-
-      /*
-        Put tortoise at bottom center.
-      */
-
-      placeTortoise();
-
-      /*
-        Bring bottom of page into view.
-      */
-
-      window.scrollTo({
-
-        top:
-          Math.max(
-            0,
-            document.documentElement.scrollHeight -
-            window.innerHeight
-          ),
-
-        behavior:
-          'smooth'
-      });
-
-      /*
-        NOW create traffic.
-      */
-
-      createTraffic();
-
-      restartYouTubeSong();
-
-      startTimer();
-
-      setStatus(
-        '🐢 GO! REACH THE TOP!'
-      );
-    }
-
-    /* =====================================================
-       WIN
-       ===================================================== */
-
-    function winGame() {
-
-      if (
-        !active ||
-        gameOver
-      ) {
-        return;
-      }
-
-      active = false;
-
-      gameOver = true;
-
-      moving = false;
-
-      stopTimer();
-
-      setStatus(
-        '🏁 YOU MADE IT! 🐢'
-      );
-
-      setTimer(
-        timeLeft
-      );
-    }
-
-    /* =====================================================
-       LOSE
-       ===================================================== */
-
-    function loseGame() {
-
-      if (
-        !active ||
-        gameOver
-      ) {
-        return;
-      }
-
-      active = false;
-
-      gameOver = true;
-
-      moving = false;
-
-      stopTimer();
-
-      setStatus(
-        '⌛ SONG OVER!'
-      );
-
-      setTimer(0);
-    }
-
-    /* =====================================================
-       END GAME
-       ===================================================== */
-
-    function endGame() {
-
-      active = false;
-
-      gameOver = true;
-
-      moving = false;
-
-      stopTimer();
-
-      /*
-        Remove all traffic.
-      */
-
-      removeTraffic();
-
-      /*
-        Return tortoise to bottom center.
-      */
-
-      position =
-        rows.length - 1;
-
-      horizontalPosition =
-        50;
-
-      placeTortoise();
-
-      /*
-        Scroll to the actual footer.
-      */
-
-      window.scrollTo({
-
-        top:
-          Math.max(
-            0,
-            document.documentElement.scrollHeight -
-            window.innerHeight
-          ),
-
-        behavior:
-          'smooth'
-      });
-
-      setStatus(
-        '🐢 GAME ENDED'
-      );
-
-      setTimer(0);
-    }
-
-    /* =====================================================
-       BUTTON EVENTS
-       ===================================================== */
-
-    startButton.addEventListener(
-      'click',
-      event => {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-        startGame();
-      }
-    );
-
-    restartButton.addEventListener(
-      'click',
-      event => {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-        startGame();
-      }
-    );
-
-    endButton.addEventListener(
-      'click',
-      event => {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-        endGame();
-      }
-    );
-
-    /* =====================================================
-       TOUCH / TAP CONTROLS
-       ===================================================== */
-
-    /*
-      Use pointer events so one finger tap
-      creates ONE movement rather than
-      accidentally firing both touch and click.
-    */
-
-    document.addEventListener(
-      'pointerup',
-      event => {
-
-        if (
-          !active ||
-          gameOver
-        ) {
-          return;
-        }
-
-        const target =
-          event.target;
-
-        /*
-          Buttons / links / media / footer
-          are not game movement.
-        */
-
-        if (
-          target.closest(
-            'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
-          )
-        ) {
-          return;
-        }
-
-        /*
-          Only primary touch / mouse pointer.
-        */
-
-        if (
-          event.pointerType === 'mouse' &&
-          event.button !== 0
-        ) {
-          return;
-        }
-
-        handleGameTap(
-          event.clientX,
-          event.clientY
-        );
-
-      },
-      true
-    );
-
-    /* =====================================================
-       RESIZE
-       ===================================================== */
-
-    window.addEventListener(
-      'resize',
-      () => {
-
-        placeTortoise();
-
-      }
-    );
-
-    /* =====================================================
-       INITIAL STATE
-       ===================================================== */
-
-    position =
-      rows.length - 1;
-
-    horizontalPosition =
-      50;
-
-    /*
-      Tortoise starts at bottom.
-      Traffic does NOT exist yet.
-    */
-
-    placeTortoise();
-
-    setStatus(
-      '🐢 READY — PRESS FROGGER'
-    );
-
-    setTimer(0);
+  if (!gameActive) {
+    trafficAnimation = null;
+    return;
   }
 
-  /* =======================================================
-     INITIALIZE
-     ======================================================= */
+  const listWidth =
+    listParent.clientWidth;
+
+  traffic.forEach(item => {
+
+    item.x +=
+      item.speed *
+      item.direction *
+      0.055;
+
+    if (item.x > 105) {
+      item.x = -5;
+    }
+
+    if (item.x < -5) {
+      item.x = 105;
+    }
+
+    item.element.style.left =
+      `${item.x}%`;
+  });
+
+  checkCollisions();
+
+  trafficAnimation =
+    requestAnimationFrame(animateTraffic);
+};
+
+
+/* -----------------------------------------------------
+   COLLISION DETECTION
+   ----------------------------------------------------- */
+
+const checkCollisions = () => {
+
+  if (!gameActive) return;
+
+  if (Date.now() < collisionCooldownUntil) {
+    return;
+  }
+
+  if (moving) return;
+
+  const tortoiseRect =
+    tortoise.getBoundingClientRect();
+
+  /*
+     Smaller collision box makes the game forgiving.
+  */
+
+  const padding = 9;
+
+  const tLeft =
+    tortoiseRect.left + padding;
+
+  const tRight =
+    tortoiseRect.right - padding;
+
+  const tTop =
+    tortoiseRect.top + padding;
+
+  const tBottom =
+    tortoiseRect.bottom - padding;
+
+
+  for (const item of traffic) {
+
+    if (!rows[position]) continue;
+
+    if (item.rowIndex !== position) {
+      continue;
+    }
+
+    /*
+       Don't immediately use the exact same
+       object that knocked us over to flip us.
+    */
+
+    if (
+      upsideDown &&
+      item === lastHitObstacle
+    ) {
+      continue;
+    }
+
+    const rect =
+      item.element.getBoundingClientRect();
+
+    const hit =
+      rect.right > tLeft &&
+      rect.left < tRight &&
+      rect.bottom > tTop &&
+      rect.top < tBottom;
+
+    if (!hit) continue;
+
+
+    /* -----------------------------------------------
+       NORMAL TORTOISE GETS HIT
+       ----------------------------------------------- */
+
+    if (!upsideDown) {
+
+      lastHitObstacle = item;
+
+      upsideDown = true;
+
+      /*
+         Fall back exactly 10 rows,
+         or as far as possible if near bottom.
+      */
+
+      position =
+        Math.min(
+          rows.length - 1,
+          position + KNOCKBACK_ROWS
+        );
+
+      /*
+         Center him after the knockdown.
+      */
+
+      horizontalPosition = 50;
+
+      placeTortoise();
+
+      collisionCooldownUntil =
+        Date.now() + 900;
+
+      setStatus(
+        '🙃 OH NO! UPSIDE DOWN!'
+      );
+
+      moveCameraToCurrentStreet(true);
+
+      return;
+    }
+
+
+    /* -----------------------------------------------
+       UPSIDE-DOWN TORTOISE GETS HIT AGAIN
+       ----------------------------------------------- */
+
+    if (upsideDown) {
+
+      /*
+         Another object has arrived.
+         FLIP!
+      */
+
+      upsideDown = false;
+
+      lastHitObstacle = null;
+
+      collisionCooldownUntil =
+        Date.now() + 700;
+
+      placeTortoise();
+
+      setStatus(
+        '🐢 BACK UP! KEEP GOING!'
+      );
+
+      return;
+    }
+  }
+};
+
+
+/* -----------------------------------------------------
+   WIN
+   ----------------------------------------------------- */
+
+const winGame = () => {
+
+  gameActive = false;
+
+  clearInterval(timerInterval);
+
+  timerInterval = null;
+
+  if (trafficAnimation) {
+    cancelAnimationFrame(trafficAnimation);
+    trafficAnimation = null;
+  }
+
+  removeTraffic();
+
+  setStatus('🐢 YOU MADE IT!');
+
+  tortoise.style.display = 'block';
+
+  upsideDown = false;
+
+  tortoise.style.transform = 'none';
+
+  placeTortoise();
+
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+};
+
+
+/* -----------------------------------------------------
+   LOSE
+   ----------------------------------------------------- */
+
+const loseGame = () => {
+
+  gameActive = false;
+
+  clearInterval(timerInterval);
+
+  timerInterval = null;
+
+  if (trafficAnimation) {
+    cancelAnimationFrame(trafficAnimation);
+    trafficAnimation = null;
+  }
+
+  removeTraffic();
+
+  setStatus('TIME OUT! 🐢');
+
+  tortoise.style.display = 'block';
+
+  upsideDown = false;
+
+  tortoise.style.transform = 'none';
+
+  position = rows.length - 1;
+
+  horizontalPosition = 50;
+
+  placeTortoise();
+
+  window.scrollTo({
+    top:
+      document.documentElement.scrollHeight,
+    behavior: 'smooth'
+  });
+};
+
+
+/* -----------------------------------------------------
+   START GAME
+   ----------------------------------------------------- */
+
+const startGame = () => {
+
+  gameActive = true;
+
+  upsideDown = false;
+
+  lastHitObstacle = null;
+
+  moving = false;
+
+  position = rows.length - 1;
+
+  horizontalPosition = 50;
+
+  tortoise.style.display = 'block';
+
+  tortoise.style.transform = 'none';
+
+  /*
+     Put tortoise at bottom before starting.
+  */
+
+  placeTortoise();
+
+  /*
+     Fresh traffic every time.
+  */
+
+  createTraffic();
+
+  setStatus(
+    '🐢 GO! REACH THE TOP!'
+  );
+
+  /*
+     Start timer.
+  */
+
+  clearInterval(timerInterval);
+
+  timerInterval =
+    setInterval(() => {
+
+      if (!gameActive) return;
+
+      timerSeconds--;
+
+      updateTimerDisplay();
+
+      if (timerSeconds <= 0) {
+        loseGame();
+      }
+
+    }, 1000);
+
+  /*
+     Try to use the currently playing media
+     duration when available.
+  */
+
+  const media =
+    document.querySelector('audio') ||
+    document.querySelector('video');
 
   if (
-    document.readyState ===
-    'loading'
+    media &&
+    Number.isFinite(media.duration) &&
+    media.duration > 0
   ) {
+    timerSeconds =
+      Math.ceil(media.duration);
+  } else {
+    timerSeconds = 180;
+  }
 
-    document.addEventListener(
-      'DOMContentLoaded',
-      init
+  updateTimerDisplay();
+
+
+  /*
+     Start / restart currently playing media.
+  */
+
+  if (media) {
+
+    try {
+      media.currentTime = 0;
+      media.play().catch(() => {});
+    } catch (e) {}
+  }
+
+
+  /*
+     YouTube iframe support.
+  */
+
+  const iframe =
+    document.querySelector(
+      'iframe[src*="youtube.com"], iframe[src*="youtu.be"]'
     );
 
-  } else {
+  if (iframe) {
 
-    init();
+    try {
+
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'seekTo',
+          args: [0, true]
+        }),
+        '*'
+      );
+
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'playVideo',
+          args: []
+        }),
+        '*'
+      );
+
+    } catch (e) {}
   }
+
+
+  window.scrollTo({
+    top:
+      document.documentElement.scrollHeight,
+    behavior: 'smooth'
+  });
+
+
+  if (trafficAnimation) {
+    cancelAnimationFrame(trafficAnimation);
+  }
+
+  trafficAnimation =
+    requestAnimationFrame(animateTraffic);
+};
+
+
+/* -----------------------------------------------------
+   RESTART SONG
+   ----------------------------------------------------- */
+
+const restartGame = () => {
+  startGame();
+};
+
+
+/* -----------------------------------------------------
+   END GAME
+   ----------------------------------------------------- */
+
+const endGame = () => {
+
+  gameActive = false;
+
+  clearInterval(timerInterval);
+
+  timerInterval = null;
+
+  if (trafficAnimation) {
+    cancelAnimationFrame(trafficAnimation);
+    trafficAnimation = null;
+  }
+
+  removeTraffic();
+
+  upsideDown = false;
+
+  lastHitObstacle = null;
+
+  moving = false;
+
+  /*
+     Put tortoise back at bottom,
+     then HIDE him completely.
+  */
+
+  position = rows.length - 1;
+
+  horizontalPosition = 50;
+
+  tortoise.style.transform = 'none';
+
+  placeTortoise();
+
+  tortoise.style.display = 'none';
+
+  setStatus('🐢 FROGGER');
+
+  window.scrollTo({
+    top:
+      document.documentElement.scrollHeight,
+    behavior: 'smooth'
+  });
+};
+
+
+/* -----------------------------------------------------
+   BUTTONS
+   ----------------------------------------------------- */
+
+document
+  .getElementById('frogger-start')
+  .addEventListener('click', startGame);
+
+document
+  .getElementById('frogger-restart')
+  .addEventListener('click', restartGame);
+
+document
+  .getElementById('frogger-end')
+  .addEventListener('click', endGame);
+
+
+/* -----------------------------------------------------
+   INITIAL STATE
+   ----------------------------------------------------- */
+
+tortoise.style.display = 'none';
+
+updateTimerDisplay();
+
+setStatus('🐢 FROGGER');
+
+};
+
+/* -------------------------------------------------------
+INITIALIZE
+------------------------------------------------------- */
+
+if (document.readyState === 'loading') {
+
+document.addEventListener(
+  'DOMContentLoaded',
+  init
+);
+
+} else {
+
+init();
+
+}
 
 })();
