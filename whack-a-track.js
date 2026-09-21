@@ -3,12 +3,17 @@
   "use strict";
 
   const STARTING_HEALTH = 12;
+  const GAME_DURATION = 60;
+  const MOLE_VISIBLE_MS = 360;
+  const MOLE_INTERVAL_MS = 470;
   const youtube = () => window.rizneyPlayer || window.player || null;
   let game;
   let active = false;
   let hits = 0;
+  let secondsLeft = GAME_DURATION;
   let moleTimer;
   let hideTimer;
+  let gameTimer;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const playing = () => {
@@ -26,8 +31,9 @@
     panel.innerHTML = `
       <h2>🎯 Whack-a-Track</h2>
       <p id="wat-status" aria-live="polite">Whack the mole before it disappears!</p>
-      <p><strong>Hits left: <span id="wat-hits">${STARTING_HEALTH}</span></strong></p>
+      <p><strong>Time: <span id="wat-time">${GAME_DURATION}</span>s · Hits left: <span id="wat-hits">${STARTING_HEALTH}</span></strong></p>
       <div id="wat-board" role="group" aria-label="Whack-a-Track board"></div>
+      <button id="wat-refresh" type="button" hidden>Refresh playlist</button>
       <button id="wat-close" type="button">Close game</button>
     `;
     Object.assign(panel.style, {
@@ -59,7 +65,7 @@
     }
 
     $("#wat-close", panel).addEventListener("click", closeGame);
-    // Put the game immediately below the media player, not at the bottom of main.
+    $("#wat-refresh", panel).addEventListener("click", () => window.location.reload());
     const playerDock = document.querySelector(".player-dock");
     (playerDock || $("main") || document.body).insertAdjacentElement("afterend", panel);
     panel.hidden = true;
@@ -85,17 +91,30 @@
     hideTimer = setTimeout(() => {
       if (hole.dataset.active === "true") hole.textContent = "🕳️";
       hole.dataset.active = "false";
-    }, 700);
-    moleTimer = setTimeout(spawnMole, 850);
+    }, MOLE_VISIBLE_MS);
+    moleTimer = setTimeout(spawnMole, MOLE_INTERVAL_MS);
+  }
+
+  function startClock() {
+    clearInterval(gameTimer);
+    secondsLeft = GAME_DURATION;
+    $("#wat-time", game.panel).textContent = secondsLeft;
+    gameTimer = setInterval(() => {
+      if (!active) return;
+      secondsLeft--;
+      $("#wat-time", game.panel).textContent = secondsLeft;
+      if (secondsLeft <= 0) finish(false);
+    }, 1000);
   }
 
   function startGame(event) {
     event?.preventDefault();
     event?.stopImmediatePropagation();
-
     game = createGame();
     clearTimeout(moleTimer);
     clearTimeout(hideTimer);
+    clearInterval(gameTimer);
+    $("#wat-refresh", game.panel).hidden = true;
 
     if (!playing()) {
       active = false;
@@ -111,28 +130,34 @@
     game.status.textContent = "Whack the mole!";
     $("#wat-hits", game.panel).textContent = STARTING_HEALTH;
     hideMoles();
+    startClock();
     game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
     spawnMole();
   }
 
   function finish(won) {
+    if (!active) return;
     active = false;
     clearTimeout(moleTimer);
     clearTimeout(hideTimer);
+    clearInterval(gameTimer);
     hideMoles();
-    game.status.textContent = won ? "💥 TRACK WHACKED! Moving to the next track…" : "The track survived.";
-
+    game.status.textContent = won
+      ? "💥 TRACK WHACKED! It has been removed from the playlist."
+      : "Time is up — the track survived.";
     if (won) {
-      // The playlist owns removal and advancing. The event keeps this game
-      // independent from the player's private variables.
       window.dispatchEvent(new CustomEvent("rizney:track-whacked"));
+      $("#wat-refresh", game.panel).hidden = false;
     }
+    // A finished game should not leave its menu open.
+    closeGame();
   }
 
   function closeGame() {
     active = false;
     clearTimeout(moleTimer);
     clearTimeout(hideTimer);
+    clearInterval(gameTimer);
     if (game) {
       hideMoles();
       game.panel.hidden = true;
@@ -143,7 +168,8 @@
     const button = document.querySelector("#whack-track");
     if (!button || button.dataset.whackGameBound === "true") return;
     button.dataset.whackGameBound = "true";
-    // Capture phase prevents the old menu/random-song handler from running.
+    // Keep Whack-a-Track on its own row below the other controls.
+    Object.assign(button.style, { flexBasis: "100%", order: "99" });
     button.addEventListener("click", startGame, true);
   }
 
