@@ -209,7 +209,10 @@ $('#random-song').onclick=()=>{cardPlaylist=null;cardPosition=0;play(Math.floor(
 $('#draw-cards').onclick=()=>{cardPlaylist=[...ids.keys()].sort(()=>Math.random()-.5).slice(0,Math.min(6,ids.length));cardPosition=0;reading.hidden=false;cards.innerHTML='';['✦','✧','✩','✹','✺','✷'].slice(0,cardPlaylist.length).forEach((symbol,position)=>{const card=document.createElement('article');card.className='card';card.innerHTML=`<span class="symbol">${symbol}</span><strong>Reading ${position+1}</strong><a href="#">Play song ${cardPlaylist[position]+1}</a>`;card.querySelector('a').onclick=e=>{e.preventDefault();playPosition(position)};cards.appendChild(card)});updateButtons()};  
 updateButtons();
 
+
+
   </script>  
-  <script src="./whack-a-track.js"></script>  
-</body>  
+    <script src="./whack-a-track.js"></script>
+<script src="./frogger.js"></script>
+</body>
 </html>
