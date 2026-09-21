@@ -1,1444 +1,856 @@
-/*
-TORTOISE FROGGER 🐢
-Rizney / Mewzing Music Page
+<style>
+/* =========================================================
+   TORTOISE FROGGER
+   One tap = one row.
+   NO TORTOISE ANIMATION.
+   ========================================================= */
 
-NO-HOP VERSION
+.tf-controls {
+  position: relative;
+  z-index: 9999;
+  margin: 12px auto 8px;
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: #120b18;
+  border: 1px solid #5c3975;
+  border-radius: 12px;
+  max-width: 700px;
+}
 
-- 🐢 Tortoise only
-- NO skateboard
-- NO hop animation
-- NO jump
-- NO bounce
-- NO sliding animation
-- Tortoise simply moves to the next street
-- Slightly slower gameplay than classic Frogger
-- NO obstacles exist before game starts
-- Obstacles are created when game starts
-- End Game removes all obstacles
-- Getting hit sends tortoise to bottom
-- Getting hit scrolls page back to bottom
+.tf-controls button {
+  border: 1px solid #8f62ad;
+  background: #1d1028;
+  color: #f0b94b;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tf-controls button:active {
+  transform: scale(.97);
+}
+
+.tf-stage {
+  position: relative;
+}
+
+.tf-tortoise {
+  position: absolute;
+  z-index: 9000;
+
+  /* IMPORTANT:
+     There is NO transition here.
+     The tortoise instantly changes rows.
   */
+  transition: none !important;
+
+  pointer-events: none;
+  user-select: none;
+  font-size: 30px;
+  line-height: 1;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tf-obstacle {
+  position: absolute;
+  z-index: 8000;
+  pointer-events: none;
+  user-select: none;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.tf-row-active {
+  position: relative;
+}
+
+.tf-game-message {
+  text-align: center;
+  color: #f0b94b;
+  font-size: 12px;
+  min-height: 16px;
+  margin: 4px 0;
+  pointer-events: none;
+}
+</style>
+
+<script>
+/* =========================================================
+   TORTOISE FROGGER
+   ========================================================= */
 
 (() => {
-'use strict';
+  'use strict';
 
-if (document.getElementById('tortoise-frogger')) return;
+  if (window.__TORTOISE_FROGGER__) return;
+  window.__TORTOISE_FROGGER__ = true;
 
-function init() {
+  let gameStarted = false;
+  let gameOver = false;
 
-if (document.getElementById('tortoise-frogger')) return;
+  let position = 0;
+  let moveLocked = false;
 
-/* -----------------------------------------
-   FIND SONG ROWS
------------------------------------------ */
+  let timer = null;
+  let timeLeft = 180;
 
-let rows = Array.from(
-  document.querySelectorAll('#song-list .song')
-);
+  let tortoise = null;
+  let stage = null;
 
-if (!rows.length) {
-  rows = Array.from(
-    document.querySelectorAll('.song')
-  );
-}
-
-if (rows.length < 2) {
-  console.warn(
-    'Tortoise Frogger: Not enough song rows found.'
-  );
-  return;
-}
-
-/* -----------------------------------------
-   GAME STATE
------------------------------------------ */
-
-let active = false;
-let gameOver = false;
-
-let position =
-  rows.length - 1;
-
-let moving = false;
-
-let timer = null;
-
-let timeLeft = 0;
-
-let songStartedAt = 0;
-
-/*
-  This is NOT an animation duration.
-
-  It is simply a tiny input lock so the
-  player cannot accidentally move several
-  streets with one touch/click.
-*/
-
-const MOVE_LOCK = 180;
-
-const DEFAULT_SONG_TIME = 180;
-
-/* -----------------------------------------
-   FOOTER
------------------------------------------ */
-
-const footer =
-  document.createElement('div');
-
-footer.id =
-  'tortoise-frogger';
-
-footer.innerHTML = `
-  <div id="tf-status">
-    🐢 READY — PRESS FROGGER
-  </div>
-
-  <div id="tf-timer">
-    0:00
-  </div>
-
-  <div id="tf-controls">
-
-    <button id="tf-start">
-      🐢 FROGGER
-    </button>
-
-    <button id="tf-restart">
-      🔄 RESTART SONG
-    </button>
-
-    <button id="tf-end">
-      ✕ END GAME
-    </button>
-
-  </div>
-`;
-
-document.body.appendChild(
-  footer
-);
-
-/* -----------------------------------------
-   CSS
------------------------------------------ */
-
-const style =
-  document.createElement('style');
-
-style.textContent = `
-
-  #tortoise-frogger {
-    position: relative;
-    z-index: 99999;
-
-    width: 100%;
-    box-sizing: border-box;
-
-    padding:
-      12px
-      10px
-      18px;
-
-    margin-top: 20px;
-
-    background:
-      linear-gradient(
-        to bottom,
-        #120b18,
-        #080509
-      );
-
-    border-top:
-      2px solid #d69a2d;
-
-    box-shadow:
-      0 -4px 18px
-      rgba(0,0,0,.45);
-
-    text-align: center;
-
-    font-family:
-      Arial,
-      sans-serif;
-  }
-
-  #tf-status {
-    color: #d69a2d;
-
-    font-size: 13px;
-
-    font-weight: bold;
-
-    letter-spacing: 1px;
-
-    margin-bottom: 5px;
-  }
-
-  #tf-timer {
-    color: #fff;
-
-    font-size: 24px;
-
-    font-weight: bold;
-
-    margin-bottom: 9px;
-
-    font-variant-numeric:
-      tabular-nums;
-  }
-
-  #tf-controls {
-    display: flex;
-
-    justify-content:
-      center;
-
-    align-items:
-      center;
-
-    gap: 7px;
-
-    flex-wrap:
-      wrap;
-  }
-
-  #tf-controls button {
-
-    border:
-      1px solid #d69a2d;
-
-    background:
-      #1d1028;
-
-    color:
-      #f0c56a;
-
-    border-radius:
-      7px;
-
-    padding:
-      9px 11px;
-
-    font-size:
-      12px;
-
-    font-weight:
-      bold;
-
-    cursor:
-      pointer;
-
-    touch-action:
-      manipulation;
-  }
-
-  #tf-controls button:active {
-    transform:
-      scale(.96);
-  }
+  let traffic = [];
 
   /*
-    THE TORTOISE.
-
-    IMPORTANT:
-    There is NO transition here.
-
-    No hop.
-    No slide.
-    No jump.
-    No bounce.
-
-    It simply changes position.
+    This is ONLY an input lock.
+    It is NOT an animation.
+    The tortoise moves immediately.
   */
+  const MOVE_LOCK = 180;
 
-  .tf-tortoise {
+  /* ---------------------------------------------------------
+     Find the song rows already on the page
+     --------------------------------------------------------- */
 
-    position:
-      fixed;
+  function getSongRows() {
+    const possible = [
+      '.song-row',
+      '.song',
+      '.song-item',
+      '.track-row',
+      '.track',
+      '.track-item'
+    ];
 
-    z-index:
-      99990;
+    for (const selector of possible) {
+      const found = Array.from(document.querySelectorAll(selector))
+        .filter(el => !el.closest('.tf-controls'));
 
-    font-size:
-      34px;
-
-    line-height:
-      1;
-
-    pointer-events:
-      none;
-
-    transform:
-      translate(
-        -50%,
-        -50%
-      );
-
-    filter:
-      drop-shadow(
-        2px 3px 2px
-        rgba(0,0,0,.55)
-      );
-  }
-
-  .tf-hit-flash {
-    animation:
-      tfHitFlash .35s ease;
-  }
-
-  @keyframes tfHitFlash {
-
-    0% {
-      filter:
-        brightness(1);
+      if (found.length > 1) {
+        return found;
+      }
     }
 
-    50% {
-      filter:
-        brightness(2.2);
+    return [];
+  }
+
+  /* ---------------------------------------------------------
+     Build game area
+     --------------------------------------------------------- */
+
+  function setupGame() {
+    if (document.getElementById('tf-controls')) return;
+
+    const rows = getSongRows();
+    if (!rows.length) return;
+
+    stage = rows[0].parentElement;
+
+    if (!stage) return;
+
+    /*
+      Make the song list the Frogger stage.
+    */
+    stage.classList.add('tf-stage');
+
+    /*
+      Controls are placed ABOVE the bottom song row.
+      This is intentional so they remain reachable after
+      a collision sends the tortoise back down.
+    */
+    const controls = document.createElement('div');
+    controls.id = 'tf-controls';
+    controls.className = 'tf-controls';
+
+    controls.innerHTML = `
+      <button type="button" id="tf-start">🐢 FROGGER</button>
+      <button type="button" id="tf-restart">🔄 RESTART SONG</button>
+      <button type="button" id="tf-end">✕ END GAME</button>
+    `;
+
+    /*
+      Insert controls immediately BEFORE the song list.
+      This keeps them above the bottom row.
+    */
+    stage.parentNode.insertBefore(controls, stage);
+
+    const message = document.createElement('div');
+    message.id = 'tf-message';
+    message.className = 'tf-game-message';
+    controls.parentNode.insertBefore(message, controls.nextSibling);
+
+    /*
+      Tortoise.
+    */
+    tortoise = document.createElement('div');
+    tortoise.className = 'tf-tortoise';
+    tortoise.textContent = '🐢';
+
+    stage.appendChild(tortoise);
+
+    /*
+      Start at bottom.
+    */
+    position = rows.length - 1;
+
+    placeTortoise();
+
+    /*
+      IMPORTANT:
+      We DO NOT create obstacles here.
+      There are zero obstacles until FROGGER or RESTART SONG
+      is pressed.
+    */
+
+    document.getElementById('tf-start')
+      .addEventListener('click', startGame);
+
+    document.getElementById('tf-restart')
+      .addEventListener('click', restartSong);
+
+    document.getElementById('tf-end')
+      .addEventListener('click', endGame);
+
+    /*
+      Tapping the page moves exactly ONE row.
+    */
+    document.addEventListener('pointerdown', handlePageTap, {
+      passive: true
+    });
+  }
+
+  /* ---------------------------------------------------------
+     Position tortoise
+     --------------------------------------------------------- */
+
+  function placeTortoise() {
+    const rows = getSongRows();
+
+    if (!tortoise || !rows.length) return;
+
+    if (position < 0) position = 0;
+    if (position >= rows.length) {
+      position = rows.length - 1;
     }
 
-    100% {
-      filter:
-        brightness(1);
+    const row = rows[position];
+
+    if (!row) return;
+
+    const stageRect = stage.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+
+    const x =
+      stageRect.width / 2 -
+      19;
+
+    const y =
+      rowRect.top -
+      stageRect.top +
+      rowRect.height / 2 -
+      19;
+
+    /*
+      DIRECT assignment.
+
+      No transform animation.
+      No transition.
+      No timeout.
+      No second positioning call.
+    */
+    tortoise.style.left = `${x}px`;
+    tortoise.style.top = `${y}px`;
+  }
+
+  /* ---------------------------------------------------------
+     Camera
+     --------------------------------------------------------- */
+
+  function moveCameraToCurrentStreet() {
+    const rows = getSongRows();
+
+    if (!rows.length) return;
+
+    const row = rows[position];
+
+    if (!row) return;
+
+    /*
+      The CAMERA moves.
+      The TORTOISE does not.
+
+      This prevents the tortoise itself from appearing
+      to hop between rows.
+    */
+    const rect = row.getBoundingClientRect();
+
+    const target =
+      window.scrollY +
+      rect.top -
+      window.innerHeight * 0.72;
+
+    window.scrollTo({
+      top: Math.max(0, target),
+      behavior: 'smooth'
+    });
+  }
+
+  /* ---------------------------------------------------------
+     Page tap
+     --------------------------------------------------------- */
+
+  function handlePageTap(event) {
+    if (!gameStarted || gameOver) return;
+
+    const target = event.target;
+
+    /*
+      Never count controls, links, buttons, inputs, players,
+      or other interactive elements as a Frogger move.
+    */
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input') ||
+      target.closest('textarea') ||
+      target.closest('select') ||
+      target.closest('video') ||
+      target.closest('audio') ||
+      target.closest('iframe') ||
+      target.closest('.tf-controls')
+    ) {
+      return;
     }
+
+    moveUp();
   }
 
-  @media (max-width: 600px) {
+  /* ---------------------------------------------------------
+     MOVE UP
+     --------------------------------------------------------- */
 
-    #tf-controls button {
-      padding:
-        10px 9px;
+  function moveUp() {
+    if (!gameStarted || gameOver) return;
+    if (moveLocked) return;
 
-      font-size:
-        11px;
+    const rows = getSongRows();
+
+    if (!rows.length) return;
+
+    /*
+      TOP REACHED
+    */
+    if (position <= 0) {
+      winGame();
+      return;
     }
 
-    .tf-tortoise {
-      font-size:
-        32px;
-    }
+    moveLocked = true;
+
+    /*
+      EXACTLY ONE ROW.
+
+      No +2.
+      No delayed correction.
+      No second placeTortoise().
+    */
+    position -= 1;
+
+    placeTortoise();
+
+    /*
+      Only the PAGE CAMERA moves.
+    */
+    moveCameraToCurrentStreet();
+
+    setTimeout(() => {
+      moveLocked = false;
+    }, MOVE_LOCK);
   }
 
-`;
-
-document.head.appendChild(
-  style
-);
-
-/* -----------------------------------------
-   CREATE TORTOISE
------------------------------------------ */
-
-const tortoise =
-  document.createElement('div');
-
-tortoise.className =
-  'tf-tortoise';
-
-/*
-  ONLY THE TORTOISE.
-*/
-
-tortoise.textContent =
-  '🐢';
-
-tortoise.setAttribute(
-  'aria-hidden',
-  'true'
-);
-
-document.body.appendChild(
-  tortoise
-);
-
-/* -----------------------------------------
-   CONTROLS
------------------------------------------ */
-
-const startButton =
-  document.getElementById(
-    'tf-start'
-  );
-
-const restartButton =
-  document.getElementById(
-    'tf-restart'
-  );
-
-const endButton =
-  document.getElementById(
-    'tf-end'
-  );
-
-const status =
-  document.getElementById(
-    'tf-status'
-  );
-
-const timerDisplay =
-  document.getElementById(
-    'tf-timer'
-  );
-
-/* -----------------------------------------
-   HELPERS
------------------------------------------ */
-
-function setStatus(message) {
-  status.textContent =
-    message;
-}
-
-function formatTime(seconds) {
-
-  seconds =
-    Math.max(
-      0,
-      Math.ceil(seconds)
-    );
-
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
-
-  const secs =
-    seconds % 60;
-
-  return (
-    minutes +
-    ':' +
-    String(secs)
-      .padStart(2, '0')
-  );
-}
-
-function setTimer(seconds) {
-
-  timerDisplay.textContent =
-    formatTime(seconds);
-}
-
-/* -----------------------------------------
-   PLACE TORTOISE
------------------------------------------ */
-
-function placeTortoise() {
-
-  const row =
-    rows[position];
-
-  if (!row) return;
-
-  const rect =
-    row.getBoundingClientRect();
-
-  /*
-    Fixed horizontal position.
-  */
-
-  tortoise.style.left =
-    (
-      window.innerWidth *
-      0.50
-    ) + 'px';
-
-  /*
-    DIRECT POSITION.
-
-    No CSS transition means
-    there is NO animated hop.
-  */
-
-  tortoise.style.top =
-    (
-      rect.top +
-      rect.height *
-      0.50
-    ) + 'px';
-}
-
-/* -----------------------------------------
-   CAMERA
------------------------------------------ */
-
-function moveCameraToCurrentStreet(
-  smooth = true
-) {
-
-  const row =
-    rows[position];
-
-  if (!row) return;
-
-  const rect =
-    row.getBoundingClientRect();
-
-  /*
-    Keep tortoise low enough that
-    upcoming streets are visible.
-  */
-
-  const targetY =
-    window.innerHeight *
-    0.72;
-
-  const targetScroll =
-    window.scrollY +
-    rect.top -
-    targetY;
-
-  window.scrollTo({
-
-    top:
-      Math.max(
-        0,
-        targetScroll
-      ),
-
-    behavior:
-      smooth
-        ? 'smooth'
-        : 'auto'
-  });
-
-  /*
-    After the camera moves,
-    put tortoise exactly on the
-    current row again.
-  */
-
-  setTimeout(
-    () => {
-      placeTortoise();
-    },
-    smooth
-      ? 450
-      : 0
-  );
-}
-
-/* -----------------------------------------
-   REMOVE ALL OBSTACLES
------------------------------------------ */
-
-function removeAllObstacles() {
-
-  document
-    .querySelectorAll(
-      '.tf-obstacle'
-    )
-    .forEach(
-      obstacle =>
-        obstacle.remove()
-    );
-
-  traffic.length = 0;
-}
-
-/* -----------------------------------------
-   RETURN TO BOTTOM
------------------------------------------ */
-
-function sendToBottom() {
-
-  position =
-    rows.length - 1;
-
-  /*
-    Immediately put tortoise
-    at bottom.
-  */
-
-  placeTortoise();
-
-  /*
-    Scroll page back down.
-  */
-
-  moveCameraToCurrentStreet(
-    true
-  );
-
-  const bottomRow =
-    rows[position];
-
-  if (bottomRow) {
-
-    bottomRow.classList.remove(
-      'tf-hit-flash'
-    );
-
-    void bottomRow.offsetWidth;
-
-    bottomRow.classList.add(
-      'tf-hit-flash'
-    );
-  }
-}
-
-/* -----------------------------------------
-   YOUTUBE RESTART
------------------------------------------ */
-
-function restartYouTubeSong() {
-
-  const iframe =
-    document.querySelector(
-      'iframe[src*="youtube.com"], iframe[src*="youtube-nocookie.com"]'
-    );
-
-  if (!iframe) {
-    return false;
+  /* ---------------------------------------------------------
+     TRAFFIC
+     --------------------------------------------------------- */
+
+  function removeAllObstacles() {
+    document
+      .querySelectorAll('.tf-obstacle')
+      .forEach(el => el.remove());
+
+    traffic = [];
   }
 
-  try {
+  function createTraffic() {
+    removeAllObstacles();
 
-    iframe.contentWindow.postMessage(
+    const rows = getSongRows();
 
-      JSON.stringify({
-        event: 'command',
-        func: 'seekTo',
-        args: [0, true]
-      }),
+    if (!rows.length) return;
 
-      '*'
-    );
-
-    iframe.contentWindow.postMessage(
-
-      JSON.stringify({
-        event: 'command',
-        func: 'playVideo',
-        args: []
-      }),
-
-      '*'
-    );
-
-    return true;
-
-  } catch (error) {
-
-    console.warn(
-      'YouTube restart failed:',
-      error
-    );
-
-    return false;
-  }
-}
-
-/* -----------------------------------------
-   SONG DURATION
------------------------------------------ */
-
-function getSongDuration() {
-
-  const media =
-    document.querySelector(
-      'audio, video'
-    );
-
-  if (
-    media &&
-    isFinite(media.duration) &&
-    media.duration > 0
-  ) {
-
-    return media.duration;
-  }
-
-  return DEFAULT_SONG_TIME;
-}
-
-/* -----------------------------------------
-   TIMER
------------------------------------------ */
-
-function stopTimer() {
-
-  if (timer) {
-
-    clearInterval(timer);
-
-    timer = null;
-  }
-}
-
-function startTimer() {
-
-  stopTimer();
-
-  timeLeft =
-    getSongDuration();
-
-  songStartedAt =
-    Date.now();
-
-  setTimer(
-    timeLeft
-  );
-
-  timer =
-    setInterval(
-      () => {
-
-        const elapsed =
-          (
-            Date.now() -
-            songStartedAt
-          ) / 1000;
-
-        timeLeft =
-          Math.max(
-            0,
-            getSongDuration() -
-            elapsed
-          );
-
-        setTimer(
-          timeLeft
-        );
-
-        if (
-          timeLeft <= 0
-        ) {
-
-          loseGame();
-        }
-
-      },
-      250
-    );
-}
-
-/* -----------------------------------------
-   TRAFFIC
------------------------------------------ */
-
-const trafficSymbols = [
-  '🚗',
-  '🚙',
-  '🚕',
-  '🚌',
-  '🎵',
-  '🎸',
-  '💿'
-];
-
-/*
-  EMPTY BEFORE GAME START.
-
-  Nothing gets created here.
-*/
-
-const traffic = [];
-
-/* -----------------------------------------
-   CREATE TRAFFIC
------------------------------------------ */
-
-function createTraffic() {
-
-  /*
-    Safety:
-    Remove anything left over
-    from an earlier game.
-  */
-
-  removeAllObstacles();
-
-  rows.forEach(
-    (row, index) => {
+    /*
+      Bottom row stays completely safe.
+    */
+    for (let i = 0; i < rows.length - 1; i++) {
 
       /*
-        Bottom row is SAFE.
+        Not every row needs traffic.
+        This keeps the game readable.
       */
+      if (Math.random() < 0.25) continue;
 
-      if (
-        index ===
-        rows.length - 1
-      ) {
-        return;
-      }
+      const row = rows[i];
 
-      const count =
-        index % 3 === 0
-          ? 2
-          : 1;
+      const obstacle = document.createElement('div');
+      obstacle.className = 'tf-obstacle';
 
-      if (
-        getComputedStyle(row)
-          .position ===
-        'static'
-      ) {
+      const objects = [
+        '🚗',
+        '🚙',
+        '🚕',
+        '🚌',
+        '🎵',
+        '🎸',
+        '💿'
+      ];
 
-        row.style.position =
-          'relative';
-      }
+      obstacle.textContent =
+        objects[Math.floor(Math.random() * objects.length)];
 
-      for (
-        let i = 0;
-        i < count;
-        i++
-      ) {
+      const rowRect = row.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
 
-        const obstacle =
-          document.createElement(
-            'div'
-          );
+      const direction =
+        Math.random() < 0.5 ? 1 : -1;
 
-        obstacle.className =
-          'tf-obstacle';
+      const speed =
+        0.35 + Math.random() * 0.55;
 
-        obstacle.textContent =
-          trafficSymbols[
-            Math.floor(
-              Math.random() *
-              trafficSymbols.length
-            )
-          ];
+      const startX =
+        direction === 1
+          ? -50
+          : stageRect.width + 50;
 
-        obstacle.style.position =
-          'absolute';
+      obstacle.style.left = `${startX}px`;
 
-        obstacle.style.zIndex =
-          '20';
+      obstacle.style.top =
+        `${rowRect.top - stageRect.top +
+        rowRect.height / 2 - 15}px`;
 
-        obstacle.style.pointerEvents =
-          'none';
+      stage.appendChild(obstacle);
 
-        obstacle.style.fontSize =
-          '27px';
+      traffic.push({
+        el: obstacle,
+        rowIndex: i,
+        x: startX,
+        direction,
+        speed
+      });
 
-        obstacle.style.lineHeight =
-          '1';
+      /*
+        Sometimes add a second object.
+      */
+      if (Math.random() < 0.35) {
+        const second = obstacle.cloneNode(true);
 
-        const startingX =
-          Math.random() *
-          100;
+        second.style.left =
+          `${direction === 1
+            ? -250
+            : stageRect.width + 250}px`;
 
-        obstacle.style.left =
-          startingX + '%';
-
-        obstacle.style.top =
-          '50%';
-
-        const direction =
-          i % 2 === 0
-            ? 1
-            : -1;
-
-        const speed =
-          0.35 +
-          Math.random() *
-          0.45;
-
-        row.appendChild(
-          obstacle
-        );
+        stage.appendChild(second);
 
         traffic.push({
-
-          element:
-            obstacle,
-
-          x:
-            startingX,
-
-          direction:
-            direction,
-
-          speed:
-            speed
+          el: second,
+          rowIndex: i,
+          x: direction === 1
+            ? -250
+            : stageRect.width + 250,
+          direction,
+          speed: speed * (0.8 + Math.random() * 0.4)
         });
       }
     }
-  );
-}
+  }
 
-/* -----------------------------------------
-   TRAFFIC LOOP
------------------------------------------ */
+  /* ---------------------------------------------------------
+     TRAFFIC ANIMATION
+     --------------------------------------------------------- */
 
-let lastFrame =
-  performance.now();
+  function animateTraffic() {
+    if (!gameStarted || gameOver) {
+      requestAnimationFrame(animateTraffic);
+      return;
+    }
 
-function animateTraffic(now) {
+    const stageWidth = stage.getBoundingClientRect().width;
 
-  const delta =
-    Math.min(
-      40,
-      now - lastFrame
-    );
+    for (const item of traffic) {
 
-  lastFrame =
-    now;
+      item.x += item.speed * item.direction;
 
-  /*
-    ABSOLUTELY NOTHING happens
-    here unless the game is active.
-  */
-
-  if (
-    active &&
-    !gameOver
-  ) {
-
-    traffic.forEach(
-      car => {
-
-        let x =
-          car.x;
-
-        x +=
-          car.direction *
-          car.speed *
-          delta *
-          0.08;
-
-        if (
-          x > 110
-        ) {
-          x = -15;
-        }
-
-        if (
-          x < -15
-        ) {
-          x = 110;
-        }
-
-        car.x =
-          x;
-
-        car.element.style.left =
-          x + '%';
+      if (item.direction === 1 && item.x > stageWidth + 60) {
+        item.x = -60;
       }
-    );
 
-    if (
-      !moving &&
-      checkCollision()
-    ) {
+      if (item.direction === -1 && item.x < -60) {
+        item.x = stageWidth + 60;
+      }
 
+      item.el.style.left = `${item.x}px`;
+
+      /*
+        Collision check.
+      */
+      if (item.rowIndex === position) {
+        checkCollision(item);
+      }
+    }
+
+    requestAnimationFrame(animateTraffic);
+  }
+
+  /* ---------------------------------------------------------
+     COLLISION
+     --------------------------------------------------------- */
+
+  function checkCollision(item) {
+    if (!tortoise) return;
+
+    const a = tortoise.getBoundingClientRect();
+    const b = item.el.getBoundingClientRect();
+
+    const padding = 7;
+
+    const hit =
+      a.left + padding < b.right &&
+      a.right - padding > b.left &&
+      a.top + padding < b.bottom &&
+      a.bottom - padding > b.top;
+
+    if (hit) {
       handleHit();
     }
   }
 
-  requestAnimationFrame(
-    animateTraffic
-  );
-}
+  /* ---------------------------------------------------------
+     HIT
+     --------------------------------------------------------- */
 
-requestAnimationFrame(
-  animateTraffic
-);
+  function handleHit() {
+    if (!gameStarted || gameOver) return;
+    if (moveLocked) return;
 
-/* -----------------------------------------
-   COLLISION
------------------------------------------ */
+    moveLocked = true;
 
-function checkCollision() {
+    /*
+      No animation.
+      No hop.
 
-  /*
-    Bottom row is completely safe.
-  */
+      Directly send tortoise to bottom.
+    */
+    sendToBottom();
 
-  if (
-    position ===
-    rows.length - 1
-  ) {
-
-    return false;
+    setTimeout(() => {
+      moveLocked = false;
+    }, 250);
   }
 
-  const row =
-    rows[position];
+  function sendToBottom() {
+    const rows = getSongRows();
 
-  if (!row) {
-    return false;
+    if (!rows.length) return;
+
+    position = rows.length - 1;
+
+    /*
+      Immediately place tortoise on bottom row.
+    */
+    placeTortoise();
+
+    /*
+      Then move the CAMERA to the bottom.
+    */
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
   }
 
-  const tortoiseRect =
-    tortoise.getBoundingClientRect();
-
-  const obstacles =
-    row.querySelectorAll(
-      '.tf-obstacle'
-    );
-
-  for (
-    const obstacle
-    of obstacles
-  ) {
-
-    const rect =
-      obstacle.getBoundingClientRect();
-
-    const hit =
-      tortoiseRect.left <
-        rect.right &&
-      tortoiseRect.right >
-        rect.left &&
-      tortoiseRect.top <
-        rect.bottom &&
-      tortoiseRect.bottom >
-        rect.top;
-
-    if (hit) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/* -----------------------------------------
-   HIT
------------------------------------------ */
-
-function handleHit() {
-
-  if (
-    !active ||
-    gameOver ||
-    moving
-  ) {
-    return;
-  }
-
-  moving = true;
-
-  setStatus(
-    '💥 BONK! BACK TO THE BOTTOM!'
-  );
-
-  setTimeout(
-    () => {
-
-      sendToBottom();
-
-      moving = false;
-
-      if (
-        active &&
-        !gameOver
-      ) {
-
-        setStatus(
-          '🐢 TRY AGAIN!'
-        );
-      }
-
-    },
-    250
-  );
-}
-
-/* -----------------------------------------
-   MOVE UP
------------------------------------------ */
-
-function moveUp() {
-
-  if (
-    !active ||
-    gameOver ||
-    moving
-  ) {
-    return;
-  }
-
-  if (
-    position === 0
-  ) {
-
-    winGame();
-
-    return;
-  }
-
-  moving = true;
-
-  /*
-    Move exactly ONE street.
-
-    There is NO animation.
-  */
-
-  position--;
-
-  /*
-    Put tortoise directly
-    on the new street.
-  */
-
-  placeTortoise();
-
-  /*
-    Then adjust camera so the
-    tortoise stays low.
-  */
-
-  moveCameraToCurrentStreet(
-    true
-  );
-
-  setStatus(
-    '🐢 MOVING...'
-  );
-
-  /*
-    This is only an input lock.
-    It does NOT animate the tortoise.
-  */
-
-  setTimeout(
-    () => {
-
-      moving = false;
-
-      if (
-        position === 0
-      ) {
-
-        winGame();
-
-      } else {
-
-        setStatus(
-          '🐢 KEEP GOING!'
-        );
-      }
-
-    },
-    MOVE_LOCK
-  );
-}
-
-/* -----------------------------------------
-   START GAME
------------------------------------------ */
-
-function startGame() {
-
-  /*
-    Remove anything from a previous
-    game first.
-  */
-
-  removeAllObstacles();
-
-  active = true;
-
-  gameOver = false;
-
-  moving = false;
-
-  position =
-    rows.length - 1;
-
-  /*
-    Put tortoise at bottom.
-  */
-
-  placeTortoise();
-
-  /*
-    Scroll to starting street.
-  */
-
-  moveCameraToCurrentStreet(
-    true
-  );
-
-  /*
-    NOW — and only now —
-    create the obstacles.
-  */
-
-  createTraffic();
-
-  /*
-    Restart current song.
-  */
-
-  restartYouTubeSong();
-
-  /*
-    Start timer.
-  */
-
-  startTimer();
-
-  setStatus(
-    '🐢 GO! REACH THE TOP!'
-  );
-}
-
-/* -----------------------------------------
-   WIN
------------------------------------------ */
-
-function winGame() {
-
-  if (
-    !active ||
-    gameOver
-  ) {
-    return;
-  }
-
-  active = false;
-
-  gameOver = true;
-
-  moving = false;
-
-  stopTimer();
-
-  setStatus(
-    '🏁 YOU MADE IT! 🐢'
-  );
-
-  setTimer(
-    timeLeft
-  );
-}
-
-/* -----------------------------------------
-   SONG ENDED
------------------------------------------ */
-
-function loseGame() {
-
-  if (
-    !active ||
-    gameOver
-  ) {
-    return;
-  }
-
-  active = false;
-
-  gameOver = true;
-
-  moving = false;
-
-  stopTimer();
-
-  /*
-    Freeze traffic where it is.
-    It remains visible because the game
-    ended, but nothing moves.
-  */
-
-  setStatus(
-    '⌛ SONG OVER!'
-  );
-
-  setTimer(0);
-}
-
-/* -----------------------------------------
-   END GAME
------------------------------------------ */
-
-function endGame() {
-
-  active = false;
-
-  gameOver = true;
-
-  moving = false;
-
-  stopTimer();
-
-  /*
-    REMOVE ALL TRAFFIC.
-
-    This means there are literally
-    NO obstacle objects on screen
-    after ending the game.
-  */
-
-  removeAllObstacles();
-
-  position =
-    rows.length - 1;
-
-  placeTortoise();
-
-  moveCameraToCurrentStreet(
-    true
-  );
-
-  setStatus(
-    '🐢 GAME ENDED'
-  );
-
-  setTimer(0);
-}
-
-/* -----------------------------------------
-   BUTTON EVENTS
------------------------------------------ */
-
-startButton.addEventListener(
-  'click',
-  event => {
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    startGame();
-  }
-);
-
-restartButton.addEventListener(
-  'click',
-  event => {
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    startGame();
-  }
-);
-
-endButton.addEventListener(
-  'click',
-  event => {
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    endGame();
-  }
-);
-
-/* -----------------------------------------
-   TAP ANYWHERE = MOVE
------------------------------------------ */
-
-document.addEventListener(
-  'click',
-  event => {
+  /* ---------------------------------------------------------
+     SONG / TIMER
+     --------------------------------------------------------- */
+
+  function getSongDuration() {
+    const media =
+      document.querySelector('audio') ||
+      document.querySelector('video');
 
     if (
-      !active ||
-      gameOver
+      media &&
+      Number.isFinite(media.duration) &&
+      media.duration > 0
     ) {
-      return;
+      return Math.floor(media.duration);
     }
 
-    const target =
-      event.target.closest(
-        'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
-      );
-
-    if (target) {
-      return;
-    }
-
-    moveUp();
-
-  },
-  true
-);
-
-/* -----------------------------------------
-   TOUCH = MOVE
------------------------------------------ */
-
-document.addEventListener(
-  'touchend',
-  event => {
-
-    if (
-      !active ||
-      gameOver
-    ) {
-      return;
-    }
-
-    const target =
-      event.target.closest(
-        'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
-      );
-
-    if (target) {
-      return;
-    }
-
-    event.preventDefault();
-
-    moveUp();
-
-  },
-  {
-    passive: false,
-    capture: true
+    /*
+      Fallback if the song is playing through YouTube iframe.
+    */
+    return 180;
   }
-);
 
-/* -----------------------------------------
-   RESIZE
------------------------------------------ */
+  function startTimer() {
+    clearInterval(timer);
 
-window.addEventListener(
-  'resize',
-  () => {
+    timeLeft = getSongDuration();
 
-    if (active) {
+    timer = setInterval(() => {
+
+      if (!gameStarted || gameOver) return;
+
+      timeLeft--;
+
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        loseGame();
+      }
+
+    }, 1000);
+  }
+
+  /* ---------------------------------------------------------
+     YOUTUBE CONTROL
+     --------------------------------------------------------- */
+
+  function restartYouTube() {
+    const iframe =
+      document.querySelector('iframe');
+
+    if (!iframe) return;
+
+    try {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'seekTo',
+          args: [0, true]
+        }),
+        '*'
+      );
+
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'playVideo'
+        }),
+        '*'
+      );
+    } catch (err) {
+      /* Ignore YouTube control errors. */
+    }
+  }
+
+  /* ---------------------------------------------------------
+     START GAME
+     --------------------------------------------------------- */
+
+  function startGame() {
+    const rows = getSongRows();
+
+    if (!rows.length) return;
+
+    gameStarted = true;
+    gameOver = false;
+
+    position = rows.length - 1;
+    moveLocked = false;
+
+    /*
+      Make sure there are NO old obstacles.
+    */
+    removeAllObstacles();
+
+    /*
+      Put tortoise directly on bottom.
+    */
+    placeTortoise();
+
+    /*
+      Scroll to bottom so controls + starting row
+      are immediately visible.
+    */
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
+
+    /*
+      NOW — and only now — create traffic.
+    */
+    createTraffic();
+
+    restartYouTube();
+    startTimer();
+
+    showMessage('');
+  }
+
+  /* ---------------------------------------------------------
+     RESTART SONG
+     --------------------------------------------------------- */
+
+  function restartSong() {
+    const rows = getSongRows();
+
+    if (!rows.length) return;
+
+    gameStarted = true;
+    gameOver = false;
+
+    position = rows.length - 1;
+    moveLocked = false;
+
+    removeAllObstacles();
+
+    placeTortoise();
+
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
+
+    createTraffic();
+
+    restartYouTube();
+    startTimer();
+
+    showMessage('');
+  }
+
+  /* ---------------------------------------------------------
+     END GAME
+     --------------------------------------------------------- */
+
+  function endGame() {
+    gameStarted = false;
+    gameOver = true;
+
+    clearInterval(timer);
+    timer = null;
+
+    /*
+      Completely remove traffic.
+    */
+    removeAllObstacles();
+
+    /*
+      Return tortoise to bottom.
+    */
+    const rows = getSongRows();
+
+    if (rows.length) {
+      position = rows.length - 1;
       placeTortoise();
     }
 
+    /*
+      Bring bottom controls / bottom row back into view.
+    */
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
+
+    showMessage('');
   }
-);
 
-/* -----------------------------------------
-   INITIAL STATE
------------------------------------------ */
+  /* ---------------------------------------------------------
+     WIN
+     --------------------------------------------------------- */
 
-position =
-  rows.length - 1;
+  function winGame() {
+    gameOver = true;
+    gameStarted = false;
 
-/*
-  No obstacles are created here.
+    clearInterval(timer);
+    timer = null;
 
-  The screen should be completely
-  obstacle-free until START.
-*/
+    showMessage('🐢 MADE IT!');
 
-placeTortoise();
+    /*
+      Freeze traffic where it is.
+    */
+  }
 
-setStatus(
-  '🐢 READY — PRESS FROGGER'
-);
+  /* ---------------------------------------------------------
+     LOSE
+     --------------------------------------------------------- */
 
-setTimer(0);
+  function loseGame() {
+    gameOver = true;
+    gameStarted = false;
 
-}
+    clearInterval(timer);
+    timer = null;
 
-if (
-document.readyState ===
-'loading'
-) {
+    showMessage('⏰ TIME!');
 
-document.addEventListener(
-  'DOMContentLoaded',
-  init
-);
+    /*
+      Traffic stays visible and frozen.
+    */
+  }
 
-} else {
+  /* ---------------------------------------------------------
+     MESSAGE
+     --------------------------------------------------------- */
 
-init();
+  function showMessage(text) {
+    const message =
+      document.getElementById('tf-message');
 
-}
+    if (message) {
+      message.textContent = text;
+    }
+  }
+
+  /* ---------------------------------------------------------
+     RESIZE
+     --------------------------------------------------------- */
+
+  window.addEventListener('resize', () => {
+    /*
+      Recalculate the tortoise position without
+      changing its row.
+    */
+    placeTortoise();
+  });
+
+  /* ---------------------------------------------------------
+     STARTUP
+     --------------------------------------------------------- */
+
+  function init() {
+    setupGame();
+
+    /*
+      Traffic is intentionally NOT created here.
+    */
+    requestAnimationFrame(animateTraffic);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();
+</script>
