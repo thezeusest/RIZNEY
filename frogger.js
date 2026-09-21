@@ -1,110 +1,94 @@
-/* Frogger-style Rizney mini-game: reach the top before the current song ends. */
+/* Tap-to-move Frogger for the Rizney song list. Each song row is a crossing. */
 (() => {
   "use strict";
-  const COLS = 11;
-  const ROWS = 9;
   const youtube = () => window.rizneyPlayer || window.player || null;
   const $ = (selector, root = document) => root.querySelector(selector);
   let game;
 
-  function injectStyles() {
+  function styles() {
     if ($("#frogger-styles")) return;
     const style = document.createElement("style");
     style.id = "frogger-styles";
     style.textContent = `
       #frogger-game { max-width:min(92vw,620px); margin:8px auto 18px; padding:12px 14px 16px; text-align:center; background:#120b18; border:2px solid #d4af37; border-radius:12px; box-shadow:0 0 24px rgba(212,175,55,.35); color:#c084fc; }
-      #frogger-game h2 { margin:0 0 5px; color:#f5d76e; }
-      #frogger-status { min-height:1.4em; margin:3px 0; }
-      #frogger-board { display:grid; grid-template-columns:repeat(11,1fr); gap:2px; width:min(100%,520px); margin:12px auto; padding:3px; background:#241333; border:1px solid #8b5ab5; }
-      .frogger-cell { aspect-ratio:1; display:grid; place-items:center; border-radius:2px; font-size:clamp(1rem,4.8vw,1.65rem); user-select:none; }
-      .frogger-road { background:#2a2330; } .frogger-safe { background:#17351e; } .frogger-goal { background:#243f18; }
-      .frogger-controls { display:grid; grid-template-columns:repeat(3,50px); justify-content:center; gap:5px; margin:8px auto; }
-      .frogger-controls button { min-height:38px; padding:3px; } .frogger-controls .empty { visibility:hidden; }
+      #frogger-game h2 { margin:0 0 5px; color:#f5d76e; } #frogger-status { min-height:1.4em; margin:3px 0; }
+      .frogger-row { position:relative; outline:2px solid transparent; transition:outline-color .15s,background .15s; }
+      .frogger-row.frogger-current { outline-color:#f5d76e; background:rgba(212,175,55,.16); }
+      .frogger-obstacle { float:right; margin-left:8px; opacity:.9; } .frogger-frog { float:left; margin-right:8px; }
+      #frogger-game .frogger-help { font-size:.9em; color:#b9a8c5; margin:5px 0 10px; }
       @media (max-width:640px) { #frogger-game { width:100%; margin-top:4px; } }
     `;
     document.head.appendChild(style);
   }
 
+  function songRows() { return [...document.querySelectorAll("#song-list .song, .song")]; }
   function createGame() {
     if (game) return game;
-    injectStyles();
+    styles();
     const panel = document.createElement("section");
-    panel.id = "frogger-game";
-    panel.hidden = true;
-    panel.setAttribute("aria-label", "Rizney Frogger");
-    panel.innerHTML = `<h2>Frogger: Mix'N'Mojo</h2><p id="frogger-status" aria-live="polite">Reach the top before the song ends!</p><p><span id="frogger-time">--:--</span> left</p><div id="frogger-board" role="grid" aria-label="Frogger board"></div><div class="frogger-controls" aria-label="Frog controls"><button class="empty" tabindex="-1" aria-hidden="true"></button><button type="button" data-move="up" aria-label="Move up">▲</button><button class="empty" tabindex="-1" aria-hidden="true"></button><button type="button" data-move="left" aria-label="Move left">◀</button><button type="button" data-move="down" aria-label="Move down">▼</button><button type="button" data-move="right" aria-label="Move right">▶</button></div><button id="frogger-close" type="button">Close game</button>`;
+    panel.id = "frogger-game"; panel.hidden = true; panel.setAttribute("aria-label", "Rizney Frogger");
+    panel.innerHTML = `<h2>Frogger: Mix'N'Mojo</h2><p id="frogger-status" aria-live="polite">Tap the page to hop upward.</p><p><span id="frogger-time">--:--</span> left · Score: <span id="frogger-score">0</span></p><p class="frogger-help">Every song is a row. Tap the left or right side of the page to dodge the object in that row, then hop forward.</p><button id="frogger-close" type="button">Close game</button>`;
     ($(".player-dock") || $("main") || document.body).insertAdjacentElement("afterend", panel);
-    const board = $("#frogger-board", panel);
-    const cells = [];
-    for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
-      const cell = document.createElement("div");
-      cell.className = `frogger-cell ${row === 0 ? "frogger-goal" : row === ROWS - 1 || row % 2 === 0 ? "frogger-safe" : "frogger-road"}`;
-      cell.setAttribute("role", "gridcell"); board.appendChild(cell); cells.push(cell);
-    }
-    game = { panel, board, cells, row:ROWS - 1, col:Math.floor(COLS / 2), active:false, timer:null, animation:null };
+    game = { panel, rows:[], position:0, active:false, startedAt:0, animation:0, score:0 };
     $("#frogger-close", panel).onclick = closeGame;
-    panel.querySelectorAll("[data-move]").forEach(button => button.onclick = () => move(button.dataset.move));
     return game;
   }
-
-  function resetBoard() {
-    game.cells.forEach(cell => { cell.textContent = ""; });
-    game.row = ROWS - 1; game.col = Math.floor(COLS / 2); render();
-  }
-  function carAt(row, col, now) {
-    if (row === 0 || row === ROWS - 1 || row % 2 === 0) return false;
-    const speed = row % 4 === 1 ? 0.004 : -0.005;
-    const offset = Math.floor(now * speed * COLS * 2);
-    const start = ((row * 3 + offset) % COLS + COLS) % COLS;
-    return (col - start + COLS) % COLS < 2;
-  }
-  function render() {
-    const now = performance.now();
-    game.cells.forEach((cell, i) => {
-      const row = Math.floor(i / COLS), col = i % COLS;
-      cell.textContent = row === game.row && col === game.col ? "🐸" : carAt(row, col, now) ? "🚗" : row === 0 ? "✦" : "";
+  function setStatus(text) { game.status.textContent = text; }
+  function decorateRows() {
+    game.rows = songRows();
+    game.rows.forEach((row, index) => {
+      row.classList.add("frogger-row"); row.dataset.froggerIndex = index;
+      row.querySelector(".frogger-obstacle")?.remove(); row.querySelector(".frogger-frog")?.remove();
+      const obstacle = document.createElement("span"); obstacle.className = "frogger-obstacle"; obstacle.textContent = Math.random() < .78 ? (index % 2 ? "🚙" : "🎸") : "";
+      obstacle.dataset.lane = Math.random() < .5 ? "left" : "right"; row.appendChild(obstacle);
     });
   }
-  function move(direction) {
-    if (!game?.active) return;
-    const delta = { up:[-1,0], down:[1,0], left:[0,-1], right:[0,1] }[direction];
-    if (!delta) return;
-    game.row = Math.max(0, Math.min(ROWS - 1, game.row + delta[0]));
-    game.col = Math.max(0, Math.min(COLS - 1, game.col + delta[1]));
-    if (game.row === 0) return finish(true);
-    render();
+  function draw() {
+    game.rows.forEach((row, index) => {
+      row.classList.toggle("frogger-current", game.active && index === game.position);
+      row.querySelector(".frogger-frog")?.remove();
+      if (game.active && index === game.position) { const frog = document.createElement("span"); frog.className = "frogger-frog"; frog.textContent = "🐸"; row.prepend(frog); }
+    });
   }
-  function finish(won) {
+  function timeLeft() {
+    const player = youtube(), duration = player?.getDuration?.() || 0, current = player?.getCurrentTime?.() || 0;
+    return Math.max(0, duration - current);
+  }
+  function finish(won, message) {
     if (!game.active) return;
-    game.active = false; cancelAnimationFrame(game.animation); clearInterval(game.timer);
-    game.status.textContent = won ? "🐸 You made it! The groove is yours!" : "The song ended! Press Frogger to try again.";
-    render();
+    game.active = false; cancelAnimationFrame(game.animation);
+    game.rows.forEach(row => row.classList.remove("frogger-current")); draw();
+    if (won) { game.score = Math.max(0, Math.round(1000 + timeLeft() * 10)); $("#frogger-score", game.panel).textContent = game.score; setStatus(`🎉 Congratulations! You reached the player! Score: ${game.score}`); $(".player-dock")?.scrollIntoView({ behavior:"smooth", block:"start" }); }
+    else setStatus(message || "Bonk! You hit an obstacle. Press Frogger to try again.");
   }
   function tick() {
     if (!game.active) return;
-    const player = youtube();
-    const duration = player?.getDuration?.() || 0, current = player?.getCurrentTime?.() || 0;
-    const left = Math.max(0, duration - current);
-    $("#frogger-time", game.panel).textContent = duration ? `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")}` : "--:--";
-    if (player && window.YT && player.getPlayerState?.() === YT.PlayerState.ENDED) return finish(false);
-    if (duration && current >= duration - .2) return finish(false);
-    if (game.row > 0 && game.row < ROWS - 1 && carAt(game.row, game.col, performance.now())) return finish(false);
-    render(); game.animation = requestAnimationFrame(tick);
+    const player = youtube(), left = timeLeft();
+    $("#frogger-time", game.panel).textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")}`;
+    if (player && window.YT && player.getPlayerState?.() === YT.PlayerState.ENDED || (player?.getDuration?.() && left <= .2)) return finish(false, "The song ended before you reached the player!");
+    draw(); game.animation = requestAnimationFrame(tick);
   }
-  function startGame(event) {
-    event?.preventDefault();
-    game = createGame(); game.panel.hidden = false; game.status = $("#frogger-status", game.panel);
-    const player = youtube();
-    if (!player || !window.YT || player.getPlayerState?.() !== YT.PlayerState.PLAYING) {
-      game.active = false; game.status.textContent = "Start playing a song first, then launch Frogger!"; game.panel.scrollIntoView({ behavior:"smooth", block:"start" }); return;
-    }
-    game.active = true; resetBoard(); game.status.textContent = "Use arrow keys, WASD, or the buttons. Avoid the cars!"; game.panel.scrollIntoView({ behavior:"smooth", block:"start" }); tick();
+  function hop(event) {
+    if (!game?.active || event.target.closest("button, a, input, select, textarea")) return;
+    const lane = event.clientX < window.innerWidth / 2 ? "left" : "right";
+    const row = game.rows[game.position], obstacle = row?.querySelector(".frogger-obstacle");
+    if (obstacle?.textContent && obstacle.dataset.lane === lane) return finish(false, "Bonk! Try again and tap the opposite side of the page.");
+    if (game.position <= 0) return finish(true);
+    game.position--; game.score += 10; $("#frogger-score", game.panel).textContent = game.score; draw();
+    game.rows[game.position]?.scrollIntoView({ behavior:"smooth", block:"center" });
   }
-  function closeGame() { if (!game) return; game.active = false; cancelAnimationFrame(game.animation); clearInterval(game.timer); game.panel.hidden = true; }
+  function start(event) {
+    event?.preventDefault(); game = createGame(); game.panel.hidden = false; game.status = $("#frogger-status", game.panel);
+    const player = youtube();
+    if (!player || !window.YT || player.getPlayerState?.() !== YT.PlayerState.PLAYING) { game.active = false; setStatus("Start playing a song first, then launch Frogger!"); game.panel.scrollIntoView({ behavior:"smooth", block:"start" }); return; }
+    decorateRows(); if (!game.rows.length) return setStatus("No song rows were found.");
+    game.position = game.rows.length - 1; game.score = 0; game.active = true; game.startedAt = performance.now(); $("#frogger-score", game.panel).textContent = "0"; setStatus("Tap the left or right side to dodge and hop upward!"); draw(); game.rows[game.position].scrollIntoView({ behavior:"smooth", block:"center" }); tick();
+  }
+  function closeGame() { if (!game) return; game.active = false; cancelAnimationFrame(game.animation); game.panel.hidden = true; game.rows.forEach(row => { row.classList.remove("frogger-row","frogger-current"); row.querySelector(".frogger-obstacle")?.remove(); row.querySelector(".frogger-frog")?.remove(); }); }
   function init() {
     const controls = $(".controls"); if (!controls || $("#frogger-start")) return;
-    const button = document.createElement("button"); button.id = "frogger-start"; button.type = "button"; button.textContent = "Frogger"; button.onclick = startGame; controls.appendChild(button);
-    document.addEventListener("keydown", event => { if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","a","s","d"].includes(event.key)) { event.preventDefault(); move(({ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",a:"left",s:"down",d:"right"})[event.key]); } });
+    const button = document.createElement("button"); button.id = "frogger-start"; button.type = "button"; button.textContent = "Frogger"; button.onclick = start; controls.appendChild(button);
+    document.addEventListener("pointerdown", hop, { passive:false });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true }); else init();
 })();
