@@ -1,21 +1,27 @@
 /* =========================================================
-TORTOISE FROGGER
+BADGER HUNT 🦡
 
-- Tortoise hidden until game starts
-- 4-direction tap controls
-- Traffic only appears during the game
-- Hit = knocked back 10 rows
-- Knocked tortoise lands upside down
-- While upside down, tortoise cannot move
-- Another traffic object must hit him to flip him upright
-- Bottom row is always safe
+- Badger starts hidden until game starts
+- Song rows are the levels
+- Tap above = up
+- Tap below = down
+- Tap left = left
+- Tap right = right
+- Animals move across the rows at different speeds
+- Touch animal = +1 point
+- Animal flips upside down and disappears
+- Scorpion 🦂 = instant death
+- Scorpions move faster than normal animals
+- Reach the top = WIN
+- Timer follows the song when possible
+- Bottom controls
   ========================================================= */
 
 (() => {
 'use strict';
 
-if (window.__tortoiseFroggerLoaded) return;
-window.__tortoiseFroggerLoaded = true;
+if (window.__badgerHuntLoaded) return;
+window.__badgerHuntLoaded = true;
 
 const init = () => {
 
@@ -31,21 +37,24 @@ const rows = Array.from(
 
 if (!rows.length) return;
 
+
 /* -----------------------------------------------------
    FOOTER
    ----------------------------------------------------- */
 
 const footer = document.createElement('div');
-footer.id = 'tortoise-frogger';
+
+footer.id = 'badger-hunt';
 
 footer.innerHTML = `
-  <div id="frogger-status">🐢 FROGGER</div>
-  <div id="frogger-timer">TIME: --:--</div>
+  <div id="badger-status">🦡 BADGER HUNT</div>
+  <div id="badger-score">SCORE: 0</div>
+  <div id="badger-timer">TIME: --:--</div>
 
-  <div id="frogger-buttons">
-    <button id="frogger-start">FROGGER</button>
-    <button id="frogger-restart">RESTART SONG</button>
-    <button id="frogger-end">END GAME</button>
+  <div id="badger-buttons">
+    <button id="badger-start">BADGER HUNT</button>
+    <button id="badger-restart">RESTART SONG</button>
+    <button id="badger-end">END GAME</button>
   </div>
 `;
 
@@ -59,37 +68,39 @@ document.body.appendChild(footer);
 const style = document.createElement('style');
 
 style.textContent = `
-  #tortoise-frogger {
+  #badger-hunt {
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    padding: 14px 10px 20px;
+    padding: 14px 10px 22px;
     margin-top: 18px;
     text-align: center;
     z-index: 9999;
   }
 
-  #frogger-status {
+  #badger-status {
     color: #f2b84b;
     font-weight: bold;
-    font-size: 15px;
-    margin-bottom: 5px;
+    font-size: 16px;
+    margin-bottom: 4px;
   }
 
-  #frogger-timer {
+  #badger-score,
+  #badger-timer {
     color: #ffffff;
     font-size: 14px;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
   }
 
-  #frogger-buttons {
+  #badger-buttons {
     display: flex;
     justify-content: center;
     gap: 7px;
     flex-wrap: wrap;
+    margin-top: 9px;
   }
 
-  #frogger-buttons button {
+  #badger-buttons button {
     border: 1px solid #f2b84b;
     background: #1d1028;
     color: #f2b84b;
@@ -101,11 +112,11 @@ style.textContent = `
     touch-action: manipulation;
   }
 
-  #frogger-buttons button:active {
+  #badger-buttons button:active {
     transform: scale(.96);
   }
 
-  #tortoise-frogger-piece {
+  #badger-hunt-piece {
     position: absolute;
     z-index: 9998;
 
@@ -115,10 +126,29 @@ style.textContent = `
     pointer-events: none;
     user-select: none;
 
+    display: none;
+
     transition: none !important;
     animation: none !important;
+  }
 
-    display: none;
+  .badger-hunt-animal {
+    position: absolute;
+    z-index: 9997;
+
+    font-size: 27px;
+    line-height: 1;
+
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .badger-hunt-hit {
+    transform: rotate(180deg);
+    opacity: 0;
+    transition:
+      transform 260ms linear,
+      opacity 260ms linear;
   }
 `;
 
@@ -126,26 +156,26 @@ document.head.appendChild(style);
 
 
 /* -----------------------------------------------------
-   MAKE SONG LIST A POSITIONING AREA
+   POSITIONING
    ----------------------------------------------------- */
+
+if (getComputedStyle(songList).position === 'static') {
+  songList.style.position = 'relative';
+}
 
 const listParent = songList;
 
-if (getComputedStyle(listParent).position === 'static') {
-  listParent.style.position = 'relative';
-}
-
 
 /* -----------------------------------------------------
-   TORTOISE
+   BADGER
    ----------------------------------------------------- */
 
-const tortoise = document.createElement('div');
+const badger = document.createElement('div');
 
-tortoise.id = 'tortoise-frogger-piece';
-tortoise.textContent = '🐢';
+badger.id = 'badger-hunt-piece';
+badger.textContent = '🦡';
 
-listParent.appendChild(tortoise);
+listParent.appendChild(badger);
 
 
 /* -----------------------------------------------------
@@ -158,36 +188,66 @@ let position = rows.length - 1;
 
 let horizontalPosition = 50;
 
+let score = 0;
+
 let timerSeconds = 180;
+
 let timerInterval = null;
+
+let animalAnimation = null;
 
 let moving = false;
 
-let upsideDown = false;
-
-let lastHitObstacle = null;
-
 let collisionCooldownUntil = 0;
+
+let animals = [];
+
 
 const HORIZONTAL_STEP = 12;
 
 const MIN_X = 8;
+
 const MAX_X = 92;
 
 const MOVE_LOCK = 170;
 
-const KNOCKBACK_ROWS = 10;
+
+/* -----------------------------------------------------
+   ANIMALS
+   ----------------------------------------------------- */
+
+const ANIMALS = [
+  '🐿️',
+  '🦔',
+  '🐁',
+  '🐍',
+  '🦜',
+  '🦀',
+  '🦆',
+  '🦉',
+  '🐤',
+  '🐣'
+];
+
+const SCORPION = '🦂';
 
 
 /* -----------------------------------------------------
-   BASIC HELPERS
+   HELPERS
    ----------------------------------------------------- */
 
 const formatTime = seconds => {
-  seconds = Math.max(0, Math.floor(seconds));
 
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  seconds = Math.max(
+    0,
+    Math.floor(seconds)
+  );
+
+  const minutes =
+    Math.floor(seconds / 60);
+
+  const secs =
+    seconds % 60;
 
   return (
     String(minutes).padStart(2, '0') +
@@ -197,8 +257,34 @@ const formatTime = seconds => {
 };
 
 
+const updateScore = () => {
+
+  const scoreElement =
+    document.getElementById('badger-score');
+
+  if (scoreElement) {
+    scoreElement.textContent =
+      `SCORE: ${score}`;
+  }
+};
+
+
+const updateTimer = () => {
+
+  const timerElement =
+    document.getElementById('badger-timer');
+
+  if (timerElement) {
+    timerElement.textContent =
+      `TIME: ${formatTime(timerSeconds)}`;
+  }
+};
+
+
 const setStatus = text => {
-  const status = document.getElementById('frogger-status');
+
+  const status =
+    document.getElementById('badger-status');
 
   if (status) {
     status.textContent = text;
@@ -206,34 +292,29 @@ const setStatus = text => {
 };
 
 
-const updateTimerDisplay = () => {
-  const timer = document.getElementById('frogger-timer');
-
-  if (timer) {
-    timer.textContent = 'TIME: ' + formatTime(timerSeconds);
-  }
-};
-
-
 /* -----------------------------------------------------
-   PLACE TORTOISE
+   PLACE BADGER
    ----------------------------------------------------- */
 
-const placeTortoise = () => {
+const placeBadger = () => {
 
   if (!rows[position]) return;
 
   const row = rows[position];
 
-  const parentRect = listParent.getBoundingClientRect();
-  const rowRect = row.getBoundingClientRect();
+  const parentRect =
+    listParent.getBoundingClientRect();
 
-  const tortoiseWidth =
-    tortoise.getBoundingClientRect().width || 31;
+  const rowRect =
+    row.getBoundingClientRect();
+
+  const badgerWidth =
+    badger.getBoundingClientRect().width || 31;
 
   const left =
-    (listParent.clientWidth * horizontalPosition / 100) -
-    (tortoiseWidth / 2);
+    (listParent.clientWidth *
+      horizontalPosition / 100) -
+    (badgerWidth / 2);
 
   const top =
     rowRect.top -
@@ -241,11 +322,11 @@ const placeTortoise = () => {
     (rowRect.height / 2) -
     16;
 
-  tortoise.style.left = `${left}px`;
-  tortoise.style.top = `${top}px`;
+  badger.style.left =
+    `${left}px`;
 
-  tortoise.style.transform =
-    upsideDown ? 'rotate(180deg)' : 'none';
+  badger.style.top =
+    `${top}px`;
 };
 
 
@@ -253,18 +334,17 @@ const placeTortoise = () => {
    CAMERA
    ----------------------------------------------------- */
 
-const moveCameraToCurrentStreet = (down = false) => {
+const moveCameraToCurrentLevel = () => {
 
   if (!rows[position]) return;
 
-  const row = rows[position];
-
-  const rect = row.getBoundingClientRect();
+  const rect =
+    rows[position].getBoundingClientRect();
 
   const targetY =
     window.scrollY +
     rect.top -
-    (window.innerHeight * 0.55);
+    window.innerHeight * 0.55;
 
   window.scrollTo({
     top: Math.max(0, targetY),
@@ -279,7 +359,7 @@ const moveCameraToCurrentStreet = (down = false) => {
 
 const moveUp = () => {
 
-  if (!gameActive || upsideDown || moving) return;
+  if (!gameActive || moving) return;
 
   if (position <= 0) return;
 
@@ -287,9 +367,9 @@ const moveUp = () => {
 
   position--;
 
-  placeTortoise();
+  placeBadger();
 
-  moveCameraToCurrentStreet();
+  moveCameraToCurrentLevel();
 
   setTimeout(() => {
     moving = false;
@@ -303,7 +383,7 @@ const moveUp = () => {
 
 const moveDown = () => {
 
-  if (!gameActive || upsideDown || moving) return;
+  if (!gameActive || moving) return;
 
   if (position >= rows.length - 1) return;
 
@@ -311,9 +391,9 @@ const moveDown = () => {
 
   position++;
 
-  placeTortoise();
+  placeBadger();
 
-  moveCameraToCurrentStreet(true);
+  moveCameraToCurrentLevel();
 
   setTimeout(() => {
     moving = false;
@@ -327,17 +407,18 @@ const moveDown = () => {
 
 const moveLeft = () => {
 
-  if (!gameActive || upsideDown || moving) return;
+  if (!gameActive || moving) return;
 
   moving = true;
 
   horizontalPosition =
     Math.max(
       MIN_X,
-      horizontalPosition - HORIZONTAL_STEP
+      horizontalPosition -
+      HORIZONTAL_STEP
     );
 
-  placeTortoise();
+  placeBadger();
 
   setTimeout(() => {
     moving = false;
@@ -351,17 +432,18 @@ const moveLeft = () => {
 
 const moveRight = () => {
 
-  if (!gameActive || upsideDown || moving) return;
+  if (!gameActive || moving) return;
 
   moving = true;
 
   horizontalPosition =
     Math.min(
       MAX_X,
-      horizontalPosition + HORIZONTAL_STEP
+      horizontalPosition +
+      HORIZONTAL_STEP
     );
 
-  placeTortoise();
+  placeBadger();
 
   setTimeout(() => {
     moving = false;
@@ -370,24 +452,30 @@ const moveRight = () => {
 
 
 /* -----------------------------------------------------
-   TAP CONTROL
+   FOUR-DIRECTION TAP CONTROL
    ----------------------------------------------------- */
 
-const handleGameTap = (clientX, clientY) => {
+const handleGameTap =
+  (clientX, clientY) => {
 
-  if (!gameActive || upsideDown) return;
+  if (!gameActive) return;
 
   const rect =
-    tortoise.getBoundingClientRect();
+    badger.getBoundingClientRect();
 
   const centerX =
-    rect.left + rect.width / 2;
+    rect.left +
+    rect.width / 2;
 
   const centerY =
-    rect.top + rect.height / 2;
+    rect.top +
+    rect.height / 2;
 
-  const dx = clientX - centerX;
-  const dy = clientY - centerY;
+  const dx =
+    clientX - centerX;
+
+  const dy =
+    clientY - centerY;
 
   const deadZone = 18;
 
@@ -418,14 +506,14 @@ const handleGameTap = (clientX, clientY) => {
 
 
 /* -----------------------------------------------------
-   PAGE TAP LISTENER
+   PAGE TAP
    ----------------------------------------------------- */
 
 document.addEventListener(
   'pointerup',
   event => {
 
-    if (!gameActive || upsideDown) return;
+    if (!gameActive) return;
 
     const target = event.target;
 
@@ -433,7 +521,7 @@ document.addEventListener(
       target &&
       target.closest &&
       (
-        target.closest('#tortoise-frogger') ||
+        target.closest('#badger-hunt') ||
         target.closest('button') ||
         target.closest('a') ||
         target.closest('input') ||
@@ -457,67 +545,86 @@ document.addEventListener(
 
 
 /* -----------------------------------------------------
-   TRAFFIC
+   REMOVE ANIMALS
    ----------------------------------------------------- */
 
-let traffic = [];
+const removeAnimals = () => {
 
-const removeTraffic = () => {
+  animals.forEach(animal => {
 
-  traffic.forEach(item => {
-
-    if (item.element &&
-        item.element.parentNode) {
-
-      item.element.remove();
+    if (
+      animal.element &&
+      animal.element.parentNode
+    ) {
+      animal.element.remove();
     }
   });
 
-  traffic = [];
+  animals = [];
 };
 
 
-const createTraffic = () => {
+/* -----------------------------------------------------
+   CREATE ANIMALS
+   ----------------------------------------------------- */
 
-  removeTraffic();
+const createAnimals = () => {
 
-  /*
-     Bottom row is always safe.
-
-     Traffic is deliberately sparse so the game
-     stays forgiving.
-  */
+  removeAnimals();
 
   rows.forEach((row, index) => {
 
-    if (index === rows.length - 1) return;
-
     /*
-       Only roughly every other row gets traffic.
+       Bottom row is safe.
+
+       Not every row gets animals.
+       This keeps the game playable.
     */
 
-    if (index % 2 !== 0) return;
+    if (index === rows.length - 1) {
+      return;
+    }
+
+    if (index % 2 !== 0) {
+      return;
+    }
+
+
+    /*
+       Usually one animal.
+       Occasionally two.
+    */
 
     const count =
-      Math.random() < 0.18 ? 2 : 1;
+      Math.random() < 0.22
+        ? 2
+        : 1;
+
 
     for (let i = 0; i < count; i++) {
 
-      const obstacle =
+      const isScorpion =
+        Math.random() < 0.12;
+
+      const emoji =
+        isScorpion
+          ? SCORPION
+          : ANIMALS[
+              Math.floor(
+                Math.random() *
+                ANIMALS.length
+              )
+            ];
+
+
+      const element =
         document.createElement('div');
 
-      obstacle.className =
-        'tortoise-frogger-traffic';
+      element.className =
+        'badger-hunt-animal';
 
-      obstacle.textContent =
-        Math.random() < 0.5 ? '🚗' : '🚙';
+      element.textContent = emoji;
 
-      obstacle.style.position = 'absolute';
-      obstacle.style.zIndex = '9997';
-      obstacle.style.pointerEvents = 'none';
-      obstacle.style.userSelect = 'none';
-      obstacle.style.fontSize = '27px';
-      obstacle.style.lineHeight = '1';
 
       const parentRect =
         listParent.getBoundingClientRect();
@@ -528,28 +635,54 @@ const createTraffic = () => {
       const rowTop =
         rowRect.top -
         parentRect.top +
-        (rowRect.height / 2) -
+        rowRect.height / 2 -
         14;
 
-      obstacle.style.top =
+      element.style.top =
         `${rowTop}px`;
+
 
       let x =
         Math.random() * 100;
 
-      obstacle.style.left = `${x}%`;
+      element.style.left =
+        `${x}%`;
 
-      listParent.appendChild(obstacle);
+      listParent.appendChild(element);
 
-      traffic.push({
-        element: obstacle,
+
+      /*
+         Different speeds.
+
+         Normal animals:
+         0.16 - 0.42
+
+         Scorpion:
+         0.42 - 0.68
+
+         So the scorpion is
+         noticeably faster.
+      */
+
+      const speed =
+        isScorpion
+          ? 0.42 +
+            Math.random() * 0.26
+          : 0.16 +
+            Math.random() * 0.26;
+
+
+      animals.push({
+        element,
         rowIndex: index,
-        x: x,
-        speed:
-          0.18 +
-          Math.random() * 0.20,
+        x,
         direction:
-          Math.random() < 0.5 ? 1 : -1
+          Math.random() < 0.5
+            ? 1
+            : -1,
+        speed,
+        isScorpion,
+        caught: false
       });
     }
   });
@@ -557,183 +690,190 @@ const createTraffic = () => {
 
 
 /* -----------------------------------------------------
-   TRAFFIC ANIMATION
+   ANIMAL MOVEMENT
    ----------------------------------------------------- */
 
-let trafficAnimation = null;
-
-const animateTraffic = () => {
+const animateAnimals = () => {
 
   if (!gameActive) {
-    trafficAnimation = null;
+
+    animalAnimation = null;
+
     return;
   }
 
-  const listWidth =
-    listParent.clientWidth;
 
-  traffic.forEach(item => {
+  animals.forEach(animal => {
 
-    item.x +=
-      item.speed *
-      item.direction *
-      0.055;
+    if (animal.caught) return;
 
-    if (item.x > 105) {
-      item.x = -5;
+
+    /*
+       Scorpions are faster.
+    */
+
+    animal.x +=
+      animal.speed *
+      animal.direction *
+      0.065;
+
+
+    /*
+       Wrap around the screen.
+    */
+
+    if (animal.x > 105) {
+      animal.x = -5;
     }
 
-    if (item.x < -5) {
-      item.x = 105;
+    if (animal.x < -5) {
+      animal.x = 105;
     }
 
-    item.element.style.left =
-      `${item.x}%`;
+
+    animal.element.style.left =
+      `${animal.x}%`;
   });
 
-  checkCollisions();
 
-  trafficAnimation =
-    requestAnimationFrame(animateTraffic);
+  checkAnimalCollisions();
+
+
+  animalAnimation =
+    requestAnimationFrame(
+      animateAnimals
+    );
 };
 
 
 /* -----------------------------------------------------
-   COLLISION DETECTION
+   COLLISION CHECK
    ----------------------------------------------------- */
 
-const checkCollisions = () => {
+const checkAnimalCollisions = () => {
 
   if (!gameActive) return;
 
-  if (Date.now() < collisionCooldownUntil) {
+  if (moving) return;
+
+  if (
+    Date.now() <
+    collisionCooldownUntil
+  ) {
     return;
   }
 
-  if (moving) return;
 
-  const tortoiseRect =
-    tortoise.getBoundingClientRect();
+  const badgerRect =
+    badger.getBoundingClientRect();
+
 
   /*
-     Smaller collision box makes the game forgiving.
+     Smaller hit box makes normal animals
+     easier to catch.
   */
 
-  const padding = 9;
+  const padding = 7;
 
-  const tLeft =
-    tortoiseRect.left + padding;
+  const left =
+    badgerRect.left + padding;
 
-  const tRight =
-    tortoiseRect.right - padding;
+  const right =
+    badgerRect.right - padding;
 
-  const tTop =
-    tortoiseRect.top + padding;
+  const top =
+    badgerRect.top + padding;
 
-  const tBottom =
-    tortoiseRect.bottom - padding;
+  const bottom =
+    badgerRect.bottom - padding;
 
 
-  for (const item of traffic) {
+  for (const animal of animals) {
 
-    if (!rows[position]) continue;
-
-    if (item.rowIndex !== position) {
-      continue;
-    }
-
-    /*
-       Don't immediately use the exact same
-       object that knocked us over to flip us.
-    */
+    if (animal.caught) continue;
 
     if (
-      upsideDown &&
-      item === lastHitObstacle
+      animal.rowIndex !== position
     ) {
       continue;
     }
 
+
     const rect =
-      item.element.getBoundingClientRect();
+      animal.element.getBoundingClientRect();
+
 
     const hit =
-      rect.right > tLeft &&
-      rect.left < tRight &&
-      rect.bottom > tTop &&
-      rect.top < tBottom;
+      rect.right > left &&
+      rect.left < right &&
+      rect.bottom > top &&
+      rect.top < bottom;
+
 
     if (!hit) continue;
 
 
-    /* -----------------------------------------------
-       NORMAL TORTOISE GETS HIT
-       ----------------------------------------------- */
+    /* ---------------------------------------------
+       SCORPION
+       --------------------------------------------- */
 
-    if (!upsideDown) {
+    if (animal.isScorpion) {
 
-      lastHitObstacle = item;
-
-      upsideDown = true;
-
-      /*
-         Fall back exactly 10 rows,
-         or as far as possible if near bottom.
-      */
-
-      position =
-        Math.min(
-          rows.length - 1,
-          position + KNOCKBACK_ROWS
-        );
-
-      /*
-         Center him after the knockdown.
-      */
-
-      horizontalPosition = 50;
-
-      placeTortoise();
-
-      collisionCooldownUntil =
-        Date.now() + 900;
-
-      setStatus(
-        '🙃 OH NO! UPSIDE DOWN!'
-      );
-
-      moveCameraToCurrentStreet(true);
+      dieGame();
 
       return;
     }
 
 
-    /* -----------------------------------------------
-       UPSIDE-DOWN TORTOISE GETS HIT AGAIN
-       ----------------------------------------------- */
+    /* ---------------------------------------------
+       NORMAL ANIMAL
+       --------------------------------------------- */
 
-    if (upsideDown) {
+    animal.caught = true;
 
-      /*
-         Another object has arrived.
-         FLIP!
-      */
+    score++;
 
-      upsideDown = false;
+    updateScore();
 
-      lastHitObstacle = null;
+    collisionCooldownUntil =
+      Date.now() + 300;
 
-      collisionCooldownUntil =
-        Date.now() + 700;
 
-      placeTortoise();
+    /*
+       Flip upside down.
+    */
 
-      setStatus(
-        '🐢 BACK UP! KEEP GOING!'
-      );
+    animal.element.classList.add(
+      'badger-hunt-hit'
+    );
 
-      return;
-    }
+
+    /*
+       Remove after the flip/fall.
+    */
+
+    setTimeout(() => {
+
+      if (
+        animal.element &&
+        animal.element.parentNode
+      ) {
+        animal.element.remove();
+      }
+
+    }, 300);
+
+
+    setStatus(
+      `🦡 GOT IT! +1`
+    );
+
+
+    /*
+       Only catch one thing per collision frame.
+    */
+
+    return;
   }
 };
 
@@ -750,22 +890,31 @@ const winGame = () => {
 
   timerInterval = null;
 
-  if (trafficAnimation) {
-    cancelAnimationFrame(trafficAnimation);
-    trafficAnimation = null;
+
+  if (animalAnimation) {
+
+    cancelAnimationFrame(
+      animalAnimation
+    );
+
+    animalAnimation = null;
   }
 
-  removeTraffic();
 
-  setStatus('🐢 YOU MADE IT!');
+  removeAnimals();
 
-  tortoise.style.display = 'block';
 
-  upsideDown = false;
+  setStatus(
+    `🏆 BADGER WINS!`
+  );
 
-  tortoise.style.transform = 'none';
 
-  placeTortoise();
+  badger.style.display =
+    'block';
+
+
+  placeBadger();
+
 
   window.scrollTo({
     top: 0,
@@ -775,10 +924,10 @@ const winGame = () => {
 
 
 /* -----------------------------------------------------
-   LOSE
+   DEATH
    ----------------------------------------------------- */
 
-const loseGame = () => {
+const dieGame = () => {
 
   gameActive = false;
 
@@ -786,32 +935,74 @@ const loseGame = () => {
 
   timerInterval = null;
 
-  if (trafficAnimation) {
-    cancelAnimationFrame(trafficAnimation);
-    trafficAnimation = null;
+
+  if (animalAnimation) {
+
+    cancelAnimationFrame(
+      animalAnimation
+    );
+
+    animalAnimation = null;
   }
 
-  removeTraffic();
 
-  setStatus('TIME OUT! 🐢');
+  removeAnimals();
 
-  tortoise.style.display = 'block';
 
-  upsideDown = false;
+  setStatus(
+    '🦂 STUNG! GAME OVER!'
+  );
 
-  tortoise.style.transform = 'none';
 
-  position = rows.length - 1;
+  /*
+     Keep badger visible so the player
+     knows where they died.
+  */
 
-  horizontalPosition = 50;
+  badger.style.display =
+    'block';
 
-  placeTortoise();
 
-  window.scrollTo({
-    top:
-      document.documentElement.scrollHeight,
-    behavior: 'smooth'
-  });
+  placeBadger();
+};
+
+
+/* -----------------------------------------------------
+   TIME OUT
+   ----------------------------------------------------- */
+
+const timeOut = () => {
+
+  gameActive = false;
+
+  clearInterval(timerInterval);
+
+  timerInterval = null;
+
+
+  if (animalAnimation) {
+
+    cancelAnimationFrame(
+      animalAnimation
+    );
+
+    animalAnimation = null;
+  }
+
+
+  removeAnimals();
+
+
+  setStatus(
+    '⏰ TIME OUT!'
+  );
+
+
+  badger.style.display =
+    'block';
+
+
+  placeBadger();
 };
 
 
@@ -823,101 +1014,94 @@ const startGame = () => {
 
   gameActive = true;
 
-  upsideDown = false;
+  score = 0;
 
-  lastHitObstacle = null;
+  updateScore();
 
-  moving = false;
 
-  position = rows.length - 1;
+  position =
+    rows.length - 1;
 
   horizontalPosition = 50;
 
-  tortoise.style.display = 'block';
+  moving = false;
 
-  tortoise.style.transform = 'none';
+  collisionCooldownUntil = 0;
 
-  /*
-     Put tortoise at bottom before starting.
-  */
 
-  placeTortoise();
+  badger.style.display =
+    'block';
 
-  /*
-     Fresh traffic every time.
-  */
 
-  createTraffic();
+  placeBadger();
+
+
+  createAnimals();
+
 
   setStatus(
-    '🐢 GO! REACH THE TOP!'
+    '🦡 HUNT!'
   );
 
-  /*
-     Start timer.
-  */
-
-  clearInterval(timerInterval);
-
-  timerInterval =
-    setInterval(() => {
-
-      if (!gameActive) return;
-
-      timerSeconds--;
-
-      updateTimerDisplay();
-
-      if (timerSeconds <= 0) {
-        loseGame();
-      }
-
-    }, 1000);
 
   /*
-     Try to use the currently playing media
-     duration when available.
+     Find current media.
   */
 
   const media =
     document.querySelector('audio') ||
     document.querySelector('video');
 
+
+  /*
+     Determine timer.
+  */
+
   if (
     media &&
     Number.isFinite(media.duration) &&
     media.duration > 0
   ) {
+
     timerSeconds =
       Math.ceil(media.duration);
+
   } else {
+
     timerSeconds = 180;
   }
 
-  updateTimerDisplay();
+
+  updateTimer();
 
 
   /*
-     Start / restart currently playing media.
+     Restart local media.
   */
 
   if (media) {
 
     try {
+
       media.currentTime = 0;
-      media.play().catch(() => {});
+
+      media.play().catch(
+        () => {}
+      );
+
     } catch (e) {}
   }
 
 
   /*
-     YouTube iframe support.
+     Try YouTube.
   */
 
   const iframe =
     document.querySelector(
       'iframe[src*="youtube.com"], iframe[src*="youtu.be"]'
     );
+
 
   if (iframe) {
 
@@ -932,6 +1116,7 @@ const startGame = () => {
         '*'
       );
 
+
       iframe.contentWindow.postMessage(
         JSON.stringify({
           event: 'command',
@@ -945,6 +1130,35 @@ const startGame = () => {
   }
 
 
+  /*
+     Timer.
+  */
+
+  clearInterval(timerInterval);
+
+
+  timerInterval =
+    setInterval(() => {
+
+      if (!gameActive) return;
+
+      timerSeconds--;
+
+      updateTimer();
+
+
+      if (timerSeconds <= 0) {
+
+        timeOut();
+      }
+
+    }, 1000);
+
+
+  /*
+     Scroll to bottom.
+  */
+
   window.scrollTo({
     top:
       document.documentElement.scrollHeight,
@@ -952,20 +1166,31 @@ const startGame = () => {
   });
 
 
-  if (trafficAnimation) {
-    cancelAnimationFrame(trafficAnimation);
+  /*
+     Start animal movement.
+  */
+
+  if (animalAnimation) {
+
+    cancelAnimationFrame(
+      animalAnimation
+    );
   }
 
-  trafficAnimation =
-    requestAnimationFrame(animateTraffic);
+
+  animalAnimation =
+    requestAnimationFrame(
+      animateAnimals
+    );
 };
 
 
 /* -----------------------------------------------------
-   RESTART SONG
+   RESTART
    ----------------------------------------------------- */
 
 const restartGame = () => {
+
   startGame();
 };
 
@@ -982,35 +1207,44 @@ const endGame = () => {
 
   timerInterval = null;
 
-  if (trafficAnimation) {
-    cancelAnimationFrame(trafficAnimation);
-    trafficAnimation = null;
+
+  if (animalAnimation) {
+
+    cancelAnimationFrame(
+      animalAnimation
+    );
+
+    animalAnimation = null;
   }
 
-  removeTraffic();
 
-  upsideDown = false;
+  removeAnimals();
 
-  lastHitObstacle = null;
 
-  moving = false;
-
-  /*
-     Put tortoise back at bottom,
-     then HIDE him completely.
-  */
-
-  position = rows.length - 1;
+  position =
+    rows.length - 1;
 
   horizontalPosition = 50;
 
-  tortoise.style.transform = 'none';
+  moving = false;
 
-  placeTortoise();
+  score = 0;
 
-  tortoise.style.display = 'none';
+  updateScore();
 
-  setStatus('🐢 FROGGER');
+
+  /*
+     Hide badger completely.
+  */
+
+  badger.style.display =
+    'none';
+
+
+  setStatus(
+    '🦡 BADGER HUNT'
+  );
+
 
   window.scrollTo({
     top:
@@ -1025,27 +1259,43 @@ const endGame = () => {
    ----------------------------------------------------- */
 
 document
-  .getElementById('frogger-start')
-  .addEventListener('click', startGame);
+  .getElementById('badger-start')
+  .addEventListener(
+    'click',
+    startGame
+  );
+
 
 document
-  .getElementById('frogger-restart')
-  .addEventListener('click', restartGame);
+  .getElementById('badger-restart')
+  .addEventListener(
+    'click',
+    restartGame
+  );
+
 
 document
-  .getElementById('frogger-end')
-  .addEventListener('click', endGame);
+  .getElementById('badger-end')
+  .addEventListener(
+    'click',
+    endGame
+  );
 
 
 /* -----------------------------------------------------
    INITIAL STATE
    ----------------------------------------------------- */
 
-tortoise.style.display = 'none';
+badger.style.display =
+  'none';
 
-updateTimerDisplay();
+updateScore();
 
-setStatus('🐢 FROGGER');
+updateTimer();
+
+setStatus(
+  '🦡 BADGER HUNT'
+);
 
 };
 
@@ -1053,7 +1303,9 @@ setStatus('🐢 FROGGER');
 INITIALIZE
 ------------------------------------------------------- */
 
-if (document.readyState === 'loading') {
+if (
+document.readyState === 'loading'
+) {
 
 document.addEventListener(
   'DOMContentLoaded',
