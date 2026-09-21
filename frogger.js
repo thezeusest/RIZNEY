@@ -2,7 +2,8 @@
    TORTOISE FROGGER 🐢🛹
    Each song row = a street.
    Tap anywhere that isn't a button/link to hop upward.
-   Reach the top before the current song ends.
+   The tortoise stays LOW on the screen so you can see
+   the streets and traffic coming toward you.
    ========================================================= */
 
 (() => {
@@ -13,16 +14,12 @@
 
   let game = null;
 
-  /* ---------------------------------------------------------
-     Find YouTube player
-     --------------------------------------------------------- */
-
   function getPlayer() {
     return window.rizneyPlayer || window.player || null;
   }
 
   /* ---------------------------------------------------------
-     Find song rows
+     SONG ROWS
      --------------------------------------------------------- */
 
   function getSongRows() {
@@ -36,7 +33,7 @@
   }
 
   /* ---------------------------------------------------------
-     Styles
+     STYLES
      --------------------------------------------------------- */
 
   function addStyles() {
@@ -79,8 +76,6 @@
         line-height: 1 !important;
         white-space: nowrap !important;
       }
-
-      /* Bottom-of-page Frogger controls */
 
       .frogger-footer {
         width: min(92%, 680px);
@@ -154,7 +149,7 @@
   }
 
   /* ---------------------------------------------------------
-     Create footer
+     FOOTER
      --------------------------------------------------------- */
 
   function createFooter() {
@@ -166,10 +161,6 @@
 
     footer.id = "frogger-footer";
     footer.className = "frogger-footer";
-    footer.setAttribute(
-      "aria-label",
-      "Tortoise Frogger"
-    );
 
     footer.innerHTML = `
       <div class="frogger-footer-title">
@@ -177,8 +168,15 @@
       </div>
 
       <div class="frogger-footer-info">
-        <span>TIME: <strong id="frogger-time">--:--</strong></span>
-        <span>STREETS: <strong id="frogger-progress">0 / 0</strong></span>
+        <span>
+          TIME:
+          <strong id="frogger-time">--:--</strong>
+        </span>
+
+        <span>
+          STREETS:
+          <strong id="frogger-progress">0 / 0</strong>
+        </span>
       </div>
 
       <div
@@ -198,10 +196,6 @@
       </button>
     `;
 
-    /*
-      Put it at the VERY BOTTOM of the page.
-    */
-
     document.body.appendChild(footer);
 
     document
@@ -216,8 +210,12 @@
      --------------------------------------------------------- */
 
   function message(text) {
-    const el = document.getElementById("frogger-message");
-    if (el) el.textContent = text;
+    const el =
+      document.getElementById("frogger-message");
+
+    if (el) {
+      el.textContent = text;
+    }
   }
 
   function updateHUD() {
@@ -228,21 +226,28 @@
     let remaining = 0;
 
     try {
-      const duration = player?.getDuration?.() || 0;
-      const current = player?.getCurrentTime?.() || 0;
+      const duration =
+        player?.getDuration?.() || 0;
 
-      remaining = Math.max(
-        0,
-        duration - current
-      );
+      const current =
+        player?.getCurrentTime?.() || 0;
+
+      remaining =
+        Math.max(
+          0,
+          duration - current
+        );
     } catch (_) {}
 
     const timeEl =
       document.getElementById("frogger-time");
 
     if (timeEl) {
-      const minutes = Math.floor(remaining / 60);
-      const seconds = Math.floor(remaining % 60);
+      const minutes =
+        Math.floor(remaining / 60);
+
+      const seconds =
+        Math.floor(remaining % 60);
 
       timeEl.textContent =
         `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -260,7 +265,7 @@
   }
 
   /* ---------------------------------------------------------
-     Prepare streets
+     PREPARE ROWS
      --------------------------------------------------------- */
 
   function prepareRows() {
@@ -273,10 +278,7 @@
   }
 
   /* ---------------------------------------------------------
-     Traffic
-     
-     IMPORTANT:
-     The bottom/start row gets NO obstacle.
+     TRAFFIC
      --------------------------------------------------------- */
 
   function addTraffic() {
@@ -289,28 +291,33 @@
     ];
 
     game.rows.forEach((row, index) => {
+
       row
         .querySelectorAll(".frogger-obstacle")
         .forEach(el => el.remove());
 
       /*
-        The last row is the starting street.
-        It is always SAFE.
+        Bottom row is ALWAYS SAFE.
       */
 
-      if (index === game.rows.length - 1) {
+      if (
+        index ===
+        game.rows.length - 1
+      ) {
         return;
       }
 
       const obstacle =
         document.createElement("span");
 
-      obstacle.className = "frogger-obstacle";
+      obstacle.className =
+        "frogger-obstacle";
 
       obstacle.textContent =
         obstacles[
           Math.floor(
-            Math.random() * obstacles.length
+            Math.random() *
+            obstacles.length
           )
         ];
 
@@ -323,35 +330,105 @@
           : "right";
 
       obstacle.dataset.speed =
-        String(35 + Math.random() * 55);
+        String(
+          35 +
+          Math.random() * 55
+        );
 
       obstacle.dataset.x =
         obstacle.dataset.direction === "left"
-          ? String(100 + Math.random() * 30)
-          : String(-20 - Math.random() * 30);
+          ? String(
+              100 +
+              Math.random() * 30
+            )
+          : String(
+              -20 -
+              Math.random() * 30
+            );
 
       row.appendChild(obstacle);
     });
   }
 
   /* ---------------------------------------------------------
-     Place tortoise
+     BOTTOM-BIASED CAMERA
+     
+     This is the important new part.
+     
+     Instead of putting the tortoise in the CENTER
+     of the screen, we keep him around the LOWER
+     portion of the screen so upcoming streets are
+     visible above him.
+     --------------------------------------------------------- */
+
+  function positionCamera() {
+    if (!game) return;
+
+    const row =
+      game.rows[game.position];
+
+    if (!row) return;
+
+    /*
+      Measure where the row currently is.
+    */
+
+    const rect =
+      row.getBoundingClientRect();
+
+    /*
+      We want the tortoise's row around
+      70% down the visible screen.
+
+      That leaves roughly the top 70% of
+      the screen available to see traffic.
+    */
+
+    const desiredY =
+      window.innerHeight * 0.68;
+
+    const movement =
+      rect.top - desiredY;
+
+    /*
+      Only scroll if the street is outside
+      the desired lower viewing position.
+    */
+
+    if (
+      Math.abs(movement) > 20
+    ) {
+      window.scrollBy({
+        top: movement,
+        behavior: "smooth"
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------
+     PLACE TORTOISE
      --------------------------------------------------------- */
 
   function placeTortoise() {
     if (!game) return;
 
     game.rows.forEach(row => {
+
       row.classList.remove(
         "frogger-current-street"
       );
 
       row
-        .querySelectorAll(".frogger-tortoise")
-        .forEach(el => el.remove());
+        .querySelectorAll(
+          ".frogger-tortoise"
+        )
+        .forEach(el =>
+          el.remove()
+        );
     });
 
-    const row = game.rows[game.position];
+    const row =
+      game.rows[game.position];
 
     if (!row) return;
 
@@ -365,7 +442,8 @@
     tortoise.className =
       "frogger-tortoise";
 
-    tortoise.textContent = "🐢🛹";
+    tortoise.textContent =
+      "🐢🛹";
 
     tortoise.setAttribute(
       "aria-hidden",
@@ -374,18 +452,26 @@
 
     row.appendChild(tortoise);
 
-    row.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
+    /*
+      IMPORTANT:
+      Don't use scrollIntoView().
+      That was what was putting the tortoise
+      in the middle of the screen.
+    */
+
+    setTimeout(
+      positionCamera,
+      20
+    );
   }
 
   /* ---------------------------------------------------------
-     Start
+     START
      --------------------------------------------------------- */
 
   function start() {
-    const player = getPlayer();
+    const player =
+      getPlayer();
 
     if (!player) {
       message(
@@ -419,10 +505,6 @@
 
     addTraffic();
 
-    /*
-      LAST row = bottom of page = starting point.
-    */
-
     game.position =
       game.rows.length - 1;
 
@@ -434,7 +516,7 @@
     placeTortoise();
 
     message(
-      "🐢🛹 GO! Tap anywhere to hop upward!"
+      "🐢🛹 GO! Watch the streets above you!"
     );
 
     cancelAnimationFrame(
@@ -451,14 +533,20 @@
   }
 
   /* ---------------------------------------------------------
-     Hop
+     HOP
      --------------------------------------------------------- */
 
   function hop(event) {
-    if (!game || !game.active) return;
+
+    if (
+      !game ||
+      !game.active
+    ) {
+      return;
+    }
 
     /*
-      These elements DON'T count as a hop.
+      Don't hijack normal site controls.
     */
 
     if (
@@ -472,27 +560,30 @@
     event.preventDefault();
 
     /*
-      Starting row is safe.
-      The tortoise can always make its first hop.
+      Starting street is SAFE.
+      Always allow first hop.
     */
 
     if (
       game.position ===
       game.rows.length - 1
     ) {
+
       game.position--;
+
       placeTortoise();
 
       message(
-        "🐢🛹 NICE! Keep climbing!"
+        "🐢🛹 NICE! Keep watching the traffic!"
       );
 
       updateHUD();
+
       return;
     }
 
     /*
-      Check the street BEFORE moving.
+      Check the current street.
     */
 
     if (
@@ -500,9 +591,11 @@
         game.rows[game.position]
       )
     ) {
+
       lose(
         "💥 BONK! Traffic got you!"
       );
+
       return;
     }
 
@@ -510,8 +603,12 @@
       Top reached.
     */
 
-    if (game.position <= 0) {
+    if (
+      game.position <= 0
+    ) {
+
       win();
+
       return;
     }
 
@@ -519,13 +616,18 @@
 
     placeTortoise();
 
-    if (game.position === 0) {
+    if (
+      game.position === 0
+    ) {
+
       message(
         "🏁 LAST STREET! REACH THE TOP!"
       );
+
     } else {
+
       message(
-        "🐢🛹 HOP!"
+        "🐢🛹 HOP! Watch the traffic above!"
       );
     }
 
@@ -533,16 +635,12 @@
   }
 
   /* ---------------------------------------------------------
-     Collision
+     COLLISION
      --------------------------------------------------------- */
 
   function checkCollision(row) {
-    if (!row) return false;
 
-    /*
-      No obstacle on starting row,
-      so there is nothing to hit there.
-    */
+    if (!row) return false;
 
     const tortoise =
       row.querySelector(
@@ -555,17 +653,22 @@
       tortoise.getBoundingClientRect();
 
     const tx =
-      t.left + t.width / 2;
+      t.left +
+      t.width / 2;
 
     const ty =
-      t.top + t.height / 2;
+      t.top +
+      t.height / 2;
 
     const obstacles =
       row.querySelectorAll(
         ".frogger-obstacle"
       );
 
-    for (const obstacle of obstacles) {
+    for (
+      const obstacle of obstacles
+    ) {
+
       const r =
         obstacle.getBoundingClientRect();
 
@@ -575,6 +678,7 @@
         ty >= r.top - 8 &&
         ty <= r.bottom + 8
       ) {
+
         return true;
       }
     }
@@ -583,10 +687,11 @@
   }
 
   /* ---------------------------------------------------------
-     Lose
+     LOSE
      --------------------------------------------------------- */
 
   function lose(text) {
+
     game.active = false;
 
     cancelAnimationFrame(
@@ -606,18 +711,23 @@
     );
 
     setTimeout(() => {
+
       row?.classList.remove(
         "frogger-danger"
       );
+
     }, 500);
   }
 
   /* ---------------------------------------------------------
-     Win
+     WIN
      --------------------------------------------------------- */
 
   function win() {
-    if (!game.active) return;
+
+    if (!game.active) {
+      return;
+    }
 
     game.active = false;
     game.won = true;
@@ -638,13 +748,17 @@
   }
 
   /* ---------------------------------------------------------
-     Move traffic
+     TRAFFIC MOVEMENT
      --------------------------------------------------------- */
 
   function moveTraffic(delta) {
-    if (!game?.active) return;
+
+    if (!game?.active) {
+      return;
+    }
 
     game.rows.forEach(row => {
+
       const obstacle =
         row.querySelector(
           ".frogger-obstacle"
@@ -696,18 +810,23 @@
   }
 
   /* ---------------------------------------------------------
-     Main loop
+     GAME LOOP
      --------------------------------------------------------- */
 
   function loop(now) {
-    if (!game || !game.active) {
+
+    if (
+      !game ||
+      !game.active
+    ) {
       return;
     }
 
     const delta =
       Math.min(
         100,
-        now - game.lastFrame
+        now -
+        game.lastFrame
       );
 
     game.lastFrame = now;
@@ -721,42 +840,66 @@
       Song ended.
     */
 
-    if (remaining <= 0.15) {
+    if (
+      remaining <= 0.15
+    ) {
+
       lose(
         "🎵 The song ended before you reached the top!"
       );
+
       return;
     }
 
     /*
-      Collision while sitting on a street.
+      Collision while sitting
+      on a street.
     */
 
     if (
       game.position <
       game.rows.length - 1
     ) {
+
       if (
         checkCollision(
-          game.rows[game.position]
+          game.rows[
+            game.position
+          ]
         )
       ) {
+
         lose(
           "💥 BONK! Traffic got you!"
         );
+
         return;
       }
     }
 
+    /*
+      Keep the camera gently positioned
+      around the lower part of the screen.
+    */
+
+    if (
+      game.active
+    ) {
+      positionCamera();
+    }
+
     game.animation =
-      requestAnimationFrame(loop);
+      requestAnimationFrame(
+        loop
+      );
   }
 
   /* ---------------------------------------------------------
-     Tap anywhere
+     TOUCH CONTROL
      --------------------------------------------------------- */
 
   function installTouchControl() {
+
     document.addEventListener(
       "pointerdown",
       hop,
@@ -767,10 +910,11 @@
   }
 
   /* ---------------------------------------------------------
-     Initialize
+     INIT
      --------------------------------------------------------- */
 
   function init() {
+
     if (game) return;
 
     addStyles();
@@ -794,15 +938,22 @@
   }
 
   if (
-    document.readyState === "loading"
+    document.readyState ===
+    "loading"
   ) {
+
     document.addEventListener(
       "DOMContentLoaded",
       init,
-      { once: true }
+      {
+        once: true
+      }
     );
+
   } else {
+
     init();
+
   }
 
 })();
