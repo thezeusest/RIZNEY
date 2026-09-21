@@ -2,18 +2,21 @@
    TORTOISE FROGGER 🐢
    RIZNEY / MEWZING MUSIC PAGE
 
-   FINAL CLEAN VERSION
+   FOUR-DIRECTION VERSION
 
-   🐢 Tortoise ONLY
-   🐢 One tap = exactly ONE row
+   🐢 Above tortoise  = UP
+   🐢 Below tortoise  = DOWN
+   🐢 Left of tortoise = LEFT
+   🐢 Right of tortoise = RIGHT
+
+   🐢 One tap = one movement
    🐢 NO hop
    🐢 NO bounce
    🐢 NO sliding animation
-   🐢 Camera may scroll, but tortoise stays attached to row
-   🚗 NO traffic exists before game starts
-   🛣️ Bottom row is always safe
+   🚗 Slower / easier traffic
+   🚗 No traffic before game starts
+   🛣️ Bottom street is always safe
    💥 Hit = return to bottom
-   📱 Hit = page returns to bottom
    🎵 Timer continues after hit
    🔄 Restart Song = fresh game
    ✕ End Game = everything stops
@@ -56,7 +59,23 @@
     let active = false;
     let gameOver = false;
 
-    let position = rows.length - 1;
+    /*
+      Vertical position.
+      Bottom row = rows.length - 1
+      Top row = 0
+    */
+
+    let position =
+      rows.length - 1;
+
+    /*
+      Horizontal position as a percentage
+      of the song-list width.
+
+      50 = center.
+    */
+
+    let horizontalPosition = 50;
 
     let moving = false;
 
@@ -67,14 +86,28 @@
     let songStartedAt = 0;
 
     /*
-      This is NOT an animation.
-
-      It only prevents several taps from being
-      registered almost simultaneously.
+      This is ONLY an input lock.
+      It is NOT an animation.
     */
-    const MOVE_LOCK = 220;
+
+    const MOVE_LOCK = 170;
 
     const DEFAULT_SONG_TIME = 180;
+
+    /*
+      How far the tortoise moves left/right
+      with one tap.
+    */
+
+    const HORIZONTAL_STEP = 12;
+
+    /*
+      Keep the tortoise away from the
+      extreme edges.
+    */
+
+    const MIN_X = 8;
+    const MAX_X = 92;
 
     /* =====================================================
        FOOTER / CONTROLS
@@ -115,32 +148,13 @@
     /*
       IMPORTANT:
 
-      Put the controls BEFORE the song list.
-
-      This means the controls are immediately above
-      the bottom Frogger street and can be reached
-      after the tortoise gets sent back down.
+      Controls stay at the VERY BOTTOM
+      of the page.
     */
 
-    const songList =
-      document.getElementById('song-list');
-
-    if (
-      songList &&
-      songList.parentNode
-    ) {
-
-      songList.parentNode.insertBefore(
-        footer,
-        songList
-      );
-
-    } else {
-
-      document.body.appendChild(
-        footer
-      );
-    }
+    document.body.appendChild(
+      footer
+    );
 
     /* =====================================================
        CSS
@@ -153,18 +167,20 @@
 
       #tortoise-frogger {
         position: relative;
+
         z-index: 99999;
 
         width: 100%;
+
         box-sizing: border-box;
 
         padding:
+          12px
           10px
-          10px
-          12px;
+          18px;
 
-        margin:
-          8px 0 8px;
+        margin-top:
+          20px;
 
         background:
           linear-gradient(
@@ -173,17 +189,15 @@
             #080509
           );
 
-        border:
+        border-top:
           2px solid #d69a2d;
 
-        border-radius:
-          10px;
-
         box-shadow:
-          0 0 14px
+          0 -4px 18px
           rgba(0,0,0,.45);
 
-        text-align: center;
+        text-align:
+          center;
 
         font-family:
           Arial,
@@ -195,7 +209,7 @@
           #d69a2d;
 
         font-size:
-          12px;
+          13px;
 
         font-weight:
           bold;
@@ -204,7 +218,7 @@
           1px;
 
         margin-bottom:
-          4px;
+          5px;
       }
 
       #tf-timer {
@@ -212,13 +226,13 @@
           #fff;
 
         font-size:
-          22px;
+          24px;
 
         font-weight:
           bold;
 
         margin-bottom:
-          7px;
+          9px;
 
         font-variant-numeric:
           tabular-nums;
@@ -235,13 +249,14 @@
           center;
 
         gap:
-          6px;
+          7px;
 
         flex-wrap:
           wrap;
       }
 
       #tf-controls button {
+
         border:
           1px solid #d69a2d;
 
@@ -255,10 +270,10 @@
           7px;
 
         padding:
-          9px 10px;
+          9px 11px;
 
         font-size:
-          11px;
+          12px;
 
         font-weight:
           bold;
@@ -276,19 +291,16 @@
       }
 
       /*
-        THE TORTOISE
+        TORTOISE
 
-        IMPORTANT:
-
-        NO transition.
-        NO animation.
-        NO hop.
-        NO bounce.
-
-        It is positioned directly on the song row.
+        No transition.
+        No animation.
+        It simply appears
+        at the new position.
       */
 
       .tf-tortoise {
+
         position:
           absolute;
 
@@ -342,6 +354,7 @@
       }
 
       .tf-obstacle {
+
         position:
           absolute;
 
@@ -355,10 +368,13 @@
           none;
 
         font-size:
-          27px;
+          25px;
 
         line-height:
           1;
+
+        transform:
+          translateY(-50%);
       }
 
       .tf-hit-flash {
@@ -387,8 +403,9 @@
       @media (max-width: 600px) {
 
         #tf-controls button {
+
           padding:
-            9px 7px;
+            10px 8px;
 
           font-size:
             10px;
@@ -409,14 +426,6 @@
     /* =====================================================
        MAKE SONG LIST A POSITIONING AREA
        ===================================================== */
-
-    /*
-      The tortoise uses document coordinates so that
-      normal page scrolling carries it with the row.
-
-      This is what prevents the weird:
-      "up two rows → back down one row" appearance.
-    */
 
     const listParent =
       rows[0].parentElement;
@@ -450,10 +459,13 @@
     );
 
     if (listParent) {
+
       listParent.appendChild(
         tortoise
       );
+
     } else {
+
       document.body.appendChild(
         tortoise
       );
@@ -547,25 +559,26 @@
         listParent.getBoundingClientRect();
 
       /*
-        DIRECT POSITION.
-
-        No transition.
-        No timeout.
-        No second positioning.
-
-        ONE position = ONE row.
+        Horizontal position.
       */
 
       tortoise.style.left =
         (
-          parentRect.width * 0.50
+          parentRect.width *
+          horizontalPosition /
+          100
         ) + 'px';
+
+      /*
+        Vertical position.
+      */
 
       tortoise.style.top =
         (
           rowRect.top -
           parentRect.top +
-          rowRect.height * 0.50
+          rowRect.height *
+          0.50
         ) + 'px';
     }
 
@@ -586,21 +599,15 @@
         row.getBoundingClientRect();
 
       /*
-        Keep the current street around 72%
-        down the screen.
+        Keep the tortoise toward the lower
+        part of the screen.
 
-        IMPORTANT:
-
-        We DO NOT reposition the tortoise
-        after scrolling.
-
-        The tortoise is attached to the row,
-        so the browser naturally scrolls it
-        with the page.
+        The tortoise itself does NOT animate.
       */
 
       const targetY =
-        window.innerHeight * 0.72;
+        window.innerHeight *
+        0.72;
 
       const targetScroll =
         window.scrollY +
@@ -631,14 +638,14 @@
       position =
         rows.length - 1;
 
-      /*
-        Directly put tortoise on bottom row.
-      */
+      horizontalPosition =
+        50;
 
       placeTortoise();
 
       /*
-        Scroll actual page down.
+        Scroll all the way down
+        to the footer.
       */
 
       window.scrollTo({
@@ -653,10 +660,6 @@
         behavior:
           'smooth'
       });
-
-      /*
-        Flash bottom street.
-      */
 
       const bottomRow =
         rows[position];
@@ -845,12 +848,7 @@
     const traffic = [];
 
     /*
-      IMPORTANT:
-
-      createTraffic() is NOT called here.
-
-      Therefore there are ZERO obstacles
-      before the game starts.
+      REMOVE ALL TRAFFIC
     */
 
     function removeTraffic() {
@@ -871,11 +869,17 @@
       traffic.length = 0;
     }
 
-    function createTraffic() {
+    /*
+      CREATE TRAFFIC
 
-      /*
-        Start completely fresh.
-      */
+      This version is deliberately easier:
+
+      - fewer objects
+      - slower objects
+      - bigger gaps
+    */
+
+    function createTraffic() {
 
       removeTraffic();
 
@@ -883,7 +887,7 @@
         (row, index) => {
 
           /*
-            Bottom row is always safe.
+            Bottom row is SAFE.
           */
 
           if (
@@ -894,23 +898,39 @@
           }
 
           /*
-            Keep traffic reasonably sparse.
+            Only about 1 out of every
+            2 rows gets traffic.
+
+            This makes the game much
+            less punishing.
           */
 
-          const count =
-            index % 3 === 0
-              ? 2
-              : 1;
+          if (
+            index % 2 !== 0 &&
+            Math.random() < 0.55
+          ) {
+            return;
+          }
 
           if (
-            getComputedStyle(row)
-              .position ===
-              'static'
+            getComputedStyle(row).position ===
+            'static'
           ) {
 
             row.style.position =
               'relative';
           }
+
+          /*
+            Usually one object.
+
+            Occasionally two.
+          */
+
+          const count =
+            Math.random() < 0.18
+              ? 2
+              : 1;
 
           for (
             let i = 0;
@@ -935,11 +955,14 @@
               ];
 
             /*
-              Start on the row.
+              Start with generous
+              spacing.
             */
 
             const startingX =
-              Math.random() * 100;
+              i === 0
+                ? Math.random() * 70 + 15
+                : Math.random() * 20;
 
             obstacle.style.left =
               startingX + '%';
@@ -952,10 +975,14 @@
                 ? 1
                 : -1;
 
+            /*
+              SLOWER than before.
+            */
+
             const speed =
-              0.35 +
+              0.18 +
               Math.random() *
-              0.45;
+              0.20;
 
             row.appendChild(
               obstacle
@@ -999,10 +1026,6 @@
       lastFrame =
         now;
 
-      /*
-        Traffic ONLY moves while active.
-      */
-
       if (
         active &&
         !gameOver
@@ -1018,7 +1041,7 @@
               car.direction *
               car.speed *
               delta *
-              0.08;
+              0.055;
 
             if (
               x > 110
@@ -1043,7 +1066,9 @@
         );
 
         /*
-          Collision.
+          Check collision only
+          when the tortoise isn't
+          currently being moved.
         */
 
         if (
@@ -1071,7 +1096,7 @@
     function checkCollision() {
 
       /*
-        Bottom row is completely safe.
+        Bottom street is always safe.
       */
 
       if (
@@ -1106,12 +1131,11 @@
           obstacle.getBoundingClientRect();
 
         /*
-          Slightly smaller collision box
-          so touching the very edge isn't
-          an automatic BONK.
+          Smaller collision box.
+          Makes the game forgiving.
         */
 
-        const padding = 7;
+        const padding = 9;
 
         const hit =
           tortoiseRect.left +
@@ -1158,12 +1182,6 @@
         '💥 BONK! BACK TO THE BOTTOM!'
       );
 
-      /*
-        Tiny pause only for the collision message.
-
-        This is NOT tortoise movement animation.
-      */
-
       setTimeout(
         () => {
 
@@ -1200,10 +1218,6 @@
         return;
       }
 
-      /*
-        Top reached.
-      */
-
       if (
         position === 0
       ) {
@@ -1215,45 +1229,157 @@
 
       moving = true;
 
-      /*
-        THIS IS THE ONLY MOVEMENT:
-
-        One tap.
-        One number change.
-        Exactly one row.
-
-        No +2.
-        No second movement.
-        No delayed correction.
-      */
-
       position =
         position - 1;
 
-      /*
-        Instantly put tortoise
-        on that exact row.
-      */
-
       placeTortoise();
-
-      /*
-        Camera follows separately.
-      */
 
       moveCameraToCurrentStreet(
         true
       );
 
       setStatus(
-        '🐢 KEEP GOING!'
+        '🐢 UP!'
       );
 
-      /*
-        This only prevents another tap
-        for a fraction of a second.
+      releaseMovement();
+    }
 
-        It does NOT animate the tortoise.
+    /* =====================================================
+       MOVE DOWN
+       ===================================================== */
+
+    function moveDown() {
+
+      if (
+        !active ||
+        gameOver ||
+        moving
+      ) {
+        return;
+      }
+
+      /*
+        Don't allow movement beyond
+        the bottom street.
+      */
+
+      if (
+        position >=
+        rows.length - 1
+      ) {
+        return;
+      }
+
+      moving = true;
+
+      position =
+        position + 1;
+
+      placeTortoise();
+
+      moveCameraToCurrentStreet(
+        true
+      );
+
+      setStatus(
+        '🐢 DOWN!'
+      );
+
+      releaseMovement();
+    }
+
+    /* =====================================================
+       MOVE LEFT
+       ===================================================== */
+
+    function moveLeft() {
+
+      if (
+        !active ||
+        gameOver ||
+        moving
+      ) {
+        return;
+      }
+
+      if (
+        horizontalPosition <=
+        MIN_X
+      ) {
+        return;
+      }
+
+      moving = true;
+
+      horizontalPosition =
+        Math.max(
+          MIN_X,
+          horizontalPosition -
+          HORIZONTAL_STEP
+        );
+
+      placeTortoise();
+
+      setStatus(
+        '🐢 LEFT!'
+      );
+
+      releaseMovement();
+    }
+
+    /* =====================================================
+       MOVE RIGHT
+       ===================================================== */
+
+    function moveRight() {
+
+      if (
+        !active ||
+        gameOver ||
+        moving
+      ) {
+        return;
+      }
+
+      if (
+        horizontalPosition >=
+        MAX_X
+      ) {
+        return;
+      }
+
+      moving = true;
+
+      horizontalPosition =
+        Math.min(
+          MAX_X,
+          horizontalPosition +
+          HORIZONTAL_STEP
+        );
+
+      placeTortoise();
+
+      setStatus(
+        '🐢 RIGHT!'
+      );
+
+      releaseMovement();
+    }
+
+    /* =====================================================
+       MOVEMENT LOCK
+       ===================================================== */
+
+    function releaseMovement() {
+
+      /*
+        Again:
+
+        This is NOT an animation.
+
+        It simply prevents accidental
+        double-taps.
       */
 
       setTimeout(
@@ -1274,6 +1400,108 @@
     }
 
     /* =====================================================
+       DETERMINE DIRECTION FROM TAP
+       ===================================================== */
+
+    function handleGameTap(
+      clientX,
+      clientY
+    ) {
+
+      if (
+        !active ||
+        gameOver ||
+        moving
+      ) {
+        return;
+      }
+
+      /*
+        Ignore the game footer.
+      */
+
+      const footerRect =
+        footer.getBoundingClientRect();
+
+      if (
+        clientY >= footerRect.top
+      ) {
+        return;
+      }
+
+      /*
+        Get tortoise's actual screen
+        position.
+      */
+
+      const tortoiseRect =
+        tortoise.getBoundingClientRect();
+
+      const tortoiseCenterX =
+        tortoiseRect.left +
+        tortoiseRect.width / 2;
+
+      const tortoiseCenterY =
+        tortoiseRect.top +
+        tortoiseRect.height / 2;
+
+      const dx =
+        clientX -
+        tortoiseCenterX;
+
+      const dy =
+        clientY -
+        tortoiseCenterY;
+
+      /*
+        Require a little distance
+        so accidentally touching the
+        tortoise doesn't cause movement.
+      */
+
+      const deadZone = 18;
+
+      if (
+        Math.abs(dx) < deadZone &&
+        Math.abs(dy) < deadZone
+      ) {
+        return;
+      }
+
+      /*
+        Whichever direction is stronger
+        determines the movement.
+
+        So:
+
+        TAP ABOVE  → UP
+        TAP BELOW  → DOWN
+        TAP LEFT   → LEFT
+        TAP RIGHT  → RIGHT
+      */
+
+      if (
+        Math.abs(dx) >
+        Math.abs(dy)
+      ) {
+
+        if (dx < 0) {
+          moveLeft();
+        } else {
+          moveRight();
+        }
+
+      } else {
+
+        if (dy < 0) {
+          moveUp();
+        } else {
+          moveDown();
+        }
+      }
+    }
+
+    /* =====================================================
        START GAME
        ===================================================== */
 
@@ -1288,22 +1516,23 @@
       position =
         rows.length - 1;
 
+      horizontalPosition =
+        50;
+
       /*
-        Make absolutely sure
-        there is no old traffic.
+        No old traffic.
       */
 
       removeTraffic();
 
       /*
-        Put tortoise on bottom.
+        Put tortoise at bottom center.
       */
 
       placeTortoise();
 
       /*
-        Put bottom row + controls
-        into view.
+        Bring bottom of page into view.
       */
 
       window.scrollTo({
@@ -1320,22 +1549,12 @@
       });
 
       /*
-        NOW traffic is created.
-
-        There was NO traffic before this.
+        NOW create traffic.
       */
 
       createTraffic();
 
-      /*
-        Restart song.
-      */
-
       restartYouTubeSong();
-
-      /*
-        Start timer.
-      */
 
       startTimer();
 
@@ -1417,23 +1636,25 @@
       stopTimer();
 
       /*
-        Remove traffic completely.
+        Remove all traffic.
       */
 
       removeTraffic();
 
       /*
-        Return tortoise to bottom.
+        Return tortoise to bottom center.
       */
 
       position =
         rows.length - 1;
 
+      horizontalPosition =
+        50;
+
       placeTortoise();
 
       /*
-        Scroll to bottom where
-        the controls are.
+        Scroll to the actual footer.
       */
 
       window.scrollTo({
@@ -1497,22 +1718,17 @@
     );
 
     /* =====================================================
-       TAP ANYWHERE = ONE ROW
+       TOUCH / TAP CONTROLS
        ===================================================== */
 
-    function isInteractiveTarget(target) {
-
-      if (!target) {
-        return false;
-      }
-
-      return !!target.closest(
-        'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
-      );
-    }
+    /*
+      Use pointer events so one finger tap
+      creates ONE movement rather than
+      accidentally firing both touch and click.
+    */
 
     document.addEventListener(
-      'click',
+      'pointerup',
       event => {
 
         if (
@@ -1522,56 +1738,40 @@
           return;
         }
 
-        if (
-          isInteractiveTarget(
-            event.target
-          )
-        ) {
-          return;
-        }
+        const target =
+          event.target;
 
-        moveUp();
-      },
-      true
-    );
-
-    /* =====================================================
-       TOUCH = ONE ROW
-       ===================================================== */
-
-    document.addEventListener(
-      'touchend',
-      event => {
+        /*
+          Buttons / links / media / footer
+          are not game movement.
+        */
 
         if (
-          !active ||
-          gameOver
-        ) {
-          return;
-        }
-
-        if (
-          isInteractiveTarget(
-            event.target
+          target.closest(
+            'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
           )
         ) {
           return;
         }
 
         /*
-          Do NOT call preventDefault here.
-
-          The page needs to remain scrollable so
-          the controls can always be reached.
+          Only primary touch / mouse pointer.
         */
 
-        moveUp();
+        if (
+          event.pointerType === 'mouse' &&
+          event.button !== 0
+        ) {
+          return;
+        }
+
+        handleGameTap(
+          event.clientX,
+          event.clientY
+        );
 
       },
-      {
-        passive: true,
-        capture: true
-      }
+      true
     );
 
     /* =====================================================
@@ -1594,11 +1794,12 @@
     position =
       rows.length - 1;
 
-    /*
-      Bottom row is where the tortoise
-      starts.
+    horizontalPosition =
+      50;
 
-      NO traffic is created here.
+    /*
+      Tortoise starts at bottom.
+      Traffic does NOT exist yet.
     */
 
     placeTortoise();
