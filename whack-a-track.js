@@ -6,8 +6,8 @@
   // health is the only progress limit, and it is displayed as a real bar.
   const TRACK_HEALTH = 24;
   const GAME_DURATION = 60;
-  const MOLE_VISIBLE_MS = 700;
-  const MOLE_INTERVAL_MS = 1400;
+  const MOLE_VISIBLE_MS = 500;
+  const MOLE_INTERVAL_MS = 1900;
   const youtube = () => window.rizneyPlayer || window.player || null;
   let game;
   let active = false;
@@ -32,7 +32,7 @@
     panel.id = "whack-a-track-game";
     panel.setAttribute("aria-label", "Whack-a-Track mini-game");
     panel.innerHTML = `
-      <h2>🎯 Whack-a-Track</h2>
+      <h2>Whack-a-Track</h2>
       <p id="wat-status" aria-live="polite">Whack the mole before it disappears!</p>
       <p><strong>Time: <span id="wat-time">${GAME_DURATION}</span>s · Hits: <span id="wat-hits">0</span></strong></p>
       <label for="wat-health"><strong>Track health: <span id="wat-health-value">${TRACK_HEALTH}</span> / ${TRACK_HEALTH}</strong></label>
@@ -110,7 +110,7 @@
     const hole = holes[Math.floor(Math.random() * holes.length)];
     hideMoles();
     hole.dataset.active = "true";
-    hole.textContent = "🐹";
+    hole.textContent = "🙀";
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       if (hole.dataset.active === "true") hole.textContent = "🕳️";
