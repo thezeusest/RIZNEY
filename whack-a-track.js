@@ -42,8 +42,22 @@
       <button id="wat-close" type="button">Close game</button>
     `;
     Object.assign(panel.style, {
-      maxWidth: "620px", margin: "24px auto", padding: "18px", textAlign: "center",
-      color: "#e0aaff", background: "#120b18", border: "2px solid #d4af37", borderRadius: "12px"
+      position: "sticky",
+      top: "104px",
+      zIndex: "20",
+      maxWidth: "min(92vw, 620px)",
+      margin: "12px auto 24px",
+      padding: "18px",
+      textAlign: "center",
+      color: "#e0aaff",
+      background: "#120b18",
+      border: "2px solid #d4af37",
+      borderRadius: "12px",
+      boxShadow: "0 12px 30px rgba(0,0,0,0.5)",
+      maxHeight: "calc(100vh - 150px)",
+      overflowY: "auto",
+      overflowX: "hidden",
+      scrollMarginTop: "120px"
     });
 
     const health = $("#wat-health", panel);
@@ -130,7 +144,7 @@
       active = false;
       game.status.textContent = "Start a song first, then whack it!";
       game.panel.hidden = false;
-      game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      game.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
       return;
     }
 
@@ -144,7 +158,7 @@
     $("#wat-health-value", game.panel).textContent = trackHealth;
     hideMoles();
     startClock();
-    game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    game.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     spawnMole();
   }
 
