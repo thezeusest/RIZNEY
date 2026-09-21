@@ -319,11 +319,14 @@
       updateButtons();
 
       setTimeout(()=>{
-        reading.scrollIntoView({
-          behavior:'smooth',
-          block:'start'
-        });
-      },50);
+  const heading = reading.querySelector('h2');
+  const toolbarOffset = 80;
+
+  window.scrollTo({
+    top: heading.getBoundingClientRect().top + window.scrollY - toolbarOffset,
+    behavior: 'smooth'
+  });
+},50);
     };
 
     updateButtons();
