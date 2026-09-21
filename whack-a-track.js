@@ -197,7 +197,7 @@
 
     if (!playing()) {
       active = false;
-      game.status.textContent = "Start a song first, then whack it!";
+      game.status.textContent = "WHACK the TRACK!";
       game.panel.hidden = false;
       game.panel.scrollIntoView({
         behavior: "smooth",
@@ -210,8 +210,6 @@
     active = true;
 
     game.panel.hidden = false;
-
-    game.status.textContent = "Whack the mole!";
 
     $("#wat-health", game.panel).value = trackHealth;
     $("#wat-health-value", game.panel).textContent = trackHealth;
