@@ -197,7 +197,7 @@
 
     if (!playing()) {
       active = false;
-      game.status.textContent = "WHACK the TRACK!";
+      game.status.textContent = "to remove from playlist";
       game.panel.hidden = false;
       game.panel.scrollIntoView({
         behavior: "smooth",
