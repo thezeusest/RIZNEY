@@ -27,6 +27,12 @@
     if (dock) document.documentElement.style.setProperty("--player-dock-height", `${dock.offsetHeight}px`);
   }
 
+  function scrollToReading() {
+    const reading = $("#reading");
+    if (!reading || reading.hidden) return;
+    requestAnimationFrame(() => reading.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
   function setupToolbar() {
     const style = document.createElement("style");
     style.textContent = `
@@ -40,6 +46,26 @@
         visibility: hidden;
         opacity: 0;
         pointer-events: none;
+      }
+      #reading, #whack-a-track-game {
+        scroll-margin-top: calc(var(--player-dock-height, 0px) + 8px);
+      }
+      @media (max-width: 640px) {
+        #whack-a-track-game {
+          width: 100%;
+          margin-top: 4px;
+          margin-bottom: 12px;
+          padding: 8px 10px 10px;
+        }
+        #whack-a-track-game #wat-board {
+          gap: 6px;
+          margin: 10px auto;
+        }
+        #whack-a-track-game .wat-hole {
+          min-height: 58px !important;
+          padding: 4px !important;
+          font-size: 1.65rem !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -66,6 +92,10 @@
       event.stopImmediatePropagation();
       reading.hidden = true;
     }, true);
+
+    // The inline CARDS handler creates the six-card playlist first. Scroll after
+    // that handler has revealed the panel, including on small screens.
+    cardsButton?.addEventListener("click", scrollToReading);
   }
 
   const playing = () => {
@@ -89,10 +119,10 @@
       <button id="wat-close" type="button">Close game</button>`;
 
     Object.assign(panel.style, {
-      position: "sticky", top: "104px", zIndex: "20", maxWidth: "min(92vw, 620px)",
+      position: "sticky", top: "var(--player-dock-height, 104px)", zIndex: "20", maxWidth: "min(92vw, 620px)",
       boxSizing: "border-box", margin: "8px auto 18px", padding: "10px 14px 14px",
       textAlign: "center", background: "#120b18", border: "2px solid #d4af37",
-      borderRadius: "12px", boxShadow: "0 0 24px rgba(212,175,55,.35)"
+      borderRadius: "12px", boxShadow: "0 0 24px rgba(212,175,55,.35)", scrollMarginTop: "calc(var(--player-dock-height, 0px) + 8px)"
     });
     Object.assign($("h2", panel).style, { margin: "0 0 6px" });
     Object.assign($("#wat-status", panel).style, { margin: "0 0 4px", minHeight: "1.4em" });
@@ -197,7 +227,7 @@
     if (!playing()) {
       active = false;
       game.status.textContent = "Play a track to start the game, then pause it to remove from playlist";
-      game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
+      game.panel.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     trackHealth = TRACK_HEALTH;
@@ -207,7 +237,7 @@
     game.status.textContent = "Whack every mouse before the clock runs out!";
     startClock();
     spawnMole();
-    game.panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    game.panel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function init() {
