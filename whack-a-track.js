@@ -21,7 +21,10 @@
       <div id="wat-board" role="group" aria-label="Whack-a-Track board"></div>
       <button id="wat-refresh" type="button" hidden>Refresh playlist</button>
       <button id="wat-close" type="button">Close game</button>`;
-    Object.assign(panel.style, { position:"sticky", top:"104px", zIndex:"20", maxWidth:"min(92vw, 620px)", margin:"12px auto 24px", padding:"18px", textAlign:"center", color:"#e0aaff", background:"#120b18", border:"2px solid #d4af37", borderRadius:"12px", boxShadow:"0 12px 30px rgba(0,0,0,0.5)", maxHeight:"calc(100vh - 150px)", overflowY:"auto", overflowX:"hidden", scrollMarginTop:"120px" });
+    Object.assign(panel.style, { position:"sticky", top:"104px", zIndex:"20", maxWidth:"min(92vw, 620px)", boxSizing:"border-box", margin:"8px auto 18px", padding:"10px 14px 14px", textAlign:"center", color:"#e0aaff", background:"#12001f", border:"1px solid #7b2cbf", borderRadius:"12px", boxShadow:"0 8px 24px rgba(0,0,0,.35)" });
+    Object.assign($("h2", panel).style, { margin:"0 0 6px" });
+    Object.assign($("#wat-status", panel).style, { margin:"0 0 4px" });
+    Object.assign($("#wat-time", panel).parentElement.style, { margin:"0 0 8px" });
     Object.assign($("#wat-health", panel).style, { display:"block", width:"100%", height:"18px", margin:"8px 0 14px", accentColor:"#d4af37" });
     const board = $("#wat-board", panel);
     Object.assign(board.style, { display:"grid", gridTemplateColumns:"repeat(3, minmax(0, 1fr))", gap:"10px", margin:"18px auto" });
@@ -45,14 +48,14 @@
     hideTimer = setTimeout(() => { if (hole.dataset.active === "true") hole.textContent="🕳️"; hole.dataset.active="false"; }, MOLE_VISIBLE_MS);
     moleTimer = setTimeout(spawnMole, MOLE_INTERVAL_MS);
   }
-  function startClock() { clearInterval(gameTimer); secondsLeft=GAME_DURATION; $("#wat-time", game.panel).textContent=secondsLeft; gameTimer=setInterval(() => { if (!active) return; secondsLeft--; $("#wat-time", game.panel).textContent=secondsLeft; if (secondsLeft <= 0) finish(false); }, 1000); }
+  function startClock() { clearInterval(gameTimer); secondsLeft=GAME_DURATION; $("#wat-time", game.panel).textContent=secondsLeft; gameTimer=setInterval(() => { if (!active) return; secondsLeft--; $("#wat-time", game.panel).textContent=secondsLeft; if (secondsLeft <= 0) finish(false); }, 1000); spawnMole(); }
   function startGame(event) {
-    event?.preventDefault(); event?.stopImmediatePropagation(); game=createGame(); clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); $("#wat-refresh", game.panel).hidden=true;
-    if (!playing()) { active=false; game.status.textContent="to remove from playlist"; game.panel.hidden=false; game.panel.scrollIntoView({ behavior:"smooth", block:"nearest" }); return; }
-    trackHealth=TRACK_HEALTH; active=true; game.panel.hidden=false; $("#wat-health", game.panel).value=trackHealth; hideMoles(); startClock(); game.panel.scrollIntoView({ behavior:"smooth", block:"nearest" }); spawnMole();
+    event?.preventDefault(); event?.stopImmediatePropagation(); game=createGame(); clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); $("#wat-refresh", game.panel).hidden=true; game.status.textContent="";
+    if (!playing()) { active=false; game.status.textContent="Play a track to start the game, then pause it to remove from playlist"; game.panel.hidden=false; game.panel.scrollIntoView({ behavior:"smooth", block:"nearest" }); return; }
+    trackHealth=TRACK_HEALTH; active=true; game.panel.hidden=false; $("#wat-health", game.panel).value=trackHealth; hideMoles(); startClock(); game.panel.scrollIntoView({ behavior:"smooth", block:"nearest" });
   }
-  function finish(won) { if (!active) return; active=false; clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); hideMoles(); game.status.textContent=won ? "💥 TRACK WHACKED! It has been removed from the playlist." : "Time is up — the track survived."; if (won) { window.dispatchEvent(new CustomEvent("rizney:track-whacked")); $("#wat-refresh", game.panel).hidden=false; } }
+  function finish(won) { if (!active) return; active=false; clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); hideMoles(); game.status.textContent=won ? "💥 TRACK WHACKED! Nice work." : "The track escaped. Try again!"; $("#wat-refresh", game.panel).hidden=false; }
   function closeGame() { active=false; clearTimeout(moleTimer); clearTimeout(hideTimer); clearInterval(gameTimer); if (game) { hideMoles(); game.panel.hidden=true; } }
-  function init() { const button=document.querySelector("#whack-track"); if (!button || button.dataset.whackGameBound === "true") return; button.dataset.whackGameBound="true"; Object.assign(button.style, { flexBasis:"100%", order:"99" }); button.addEventListener("click", startGame, true); }
+  function init() { const button=document.querySelector("#whack-track"); if (!button || button.dataset.whackGameBound === "true") return; button.dataset.whackGameBound="true"; Object.assign(button.style, { cursor:"pointer" }); button.addEventListener("click", startGame); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true }); else init();
 })();
