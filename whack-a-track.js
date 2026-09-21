@@ -2,11 +2,12 @@
 (() => {
   "use strict";
 
-  // Hits are not displayed. The track's health is the only progress limit.
+  // The track's health still controls the game,
+  // but the player does not see the health or hit count.
   const TRACK_HEALTH = 24;
   const GAME_DURATION = 60;
-  const MOLE_VISIBLE_MS = 500;
-  const MOLE_INTERVAL_MS = 900;
+  const MOLE_VISIBLE_MS = 400;
+  const MOLE_INTERVAL_MS = 1200;
   const youtube = () => window.rizneyPlayer || window.player || null;
   let game;
   let active = false;
@@ -33,13 +34,28 @@
 
     panel.innerHTML = `
       <h2>Whack-a-Track</h2>
-      <p id="wat-status" aria-live="polite">Whack the mole before it disappears!</p>
-      <p><strong>Time: <span id="wat-time">${GAME_DURATION}</span>s</strong></p>
-      <label for="wat-health"><strong>Track health: <span id="wat-health-value">${TRACK_HEALTH}</span> / ${TRACK_HEALTH}</strong></label>
-      <progress id="wat-health" max="${TRACK_HEALTH}" value="${TRACK_HEALTH}" aria-label="Track health"></progress>
-      <div id="wat-board" role="group" aria-label="Whack-a-Track board"></div>
-      <button id="wat-refresh" type="button" hidden>Refresh playlist</button>
-      <button id="wat-close" type="button">Close game</button>
+      <p id="wat-status" aria-live="polite">
+        Whack the mole before it disappears!
+      </p>
+
+      <p>
+        <strong>
+          Time: <span id="wat-time">${GAME_DURATION}</span>s
+        </strong>
+      </p>
+
+      <div id="wat-board"
+        role="group"
+        aria-label="Whack-a-Track board">
+      </div>
+
+      <button id="wat-refresh" type="button" hidden>
+        Refresh playlist
+      </button>
+
+      <button id="wat-close" type="button">
+        Close game
+      </button>
     `;
 
     Object.assign(panel.style, {
@@ -59,16 +75,6 @@
       overflowY: "auto",
       overflowX: "hidden",
       scrollMarginTop: "120px"
-    });
-
-    const health = $("#wat-health", panel);
-
-    Object.assign(health.style, {
-      display: "block",
-      width: "100%",
-      height: "18px",
-      margin: "8px 0 14px",
-      accentColor: "#d4af37"
     });
 
     const board = $("#wat-board", panel);
@@ -101,9 +107,6 @@
         hole.textContent = "💥";
 
         trackHealth--;
-
-        $("#wat-health", panel).value = trackHealth;
-        $("#wat-health-value", panel).textContent = trackHealth;
 
         if (trackHealth <= 0) finish(true);
       });
@@ -143,14 +146,17 @@
   function spawnMole() {
     if (!active) return;
 
-    const holes = [...game.board.querySelectorAll(".wat-hole")];
+    const holes = [
+      ...game.board.querySelectorAll(".wat-hole")
+    ];
 
-    const hole = holes[Math.floor(Math.random() * holes.length)];
+    const hole =
+      holes[Math.floor(Math.random() * holes.length)];
 
     hideMoles();
 
     hole.dataset.active = "true";
-    hole.textContent = "🐹";
+    hole.textContent = "💀";
 
     clearTimeout(hideTimer);
 
@@ -162,7 +168,10 @@
       hole.dataset.active = "false";
     }, MOLE_VISIBLE_MS);
 
-    moleTimer = setTimeout(spawnMole, MOLE_INTERVAL_MS);
+    moleTimer = setTimeout(
+      spawnMole,
+      MOLE_INTERVAL_MS
+    );
   }
 
   function startClock() {
@@ -170,16 +179,20 @@
 
     secondsLeft = GAME_DURATION;
 
-    $("#wat-time", game.panel).textContent = secondsLeft;
+    $("#wat-time", game.panel).textContent =
+      secondsLeft;
 
     gameTimer = setInterval(() => {
       if (!active) return;
 
       secondsLeft--;
 
-      $("#wat-time", game.panel).textContent = secondsLeft;
+      $("#wat-time", game.panel).textContent =
+        secondsLeft;
 
-      if (secondsLeft <= 0) finish(false);
+      if (secondsLeft <= 0) {
+        finish(false);
+      }
     }, 1000);
   }
 
@@ -197,12 +210,17 @@
 
     if (!playing()) {
       active = false;
-      game.status.textContent = "Start a song first, then whack it!";
+
+      // No extra instructional message.
+      game.status.textContent = "";
+
       game.panel.hidden = false;
+
       game.panel.scrollIntoView({
         behavior: "smooth",
         block: "nearest"
       });
+
       return;
     }
 
@@ -211,10 +229,8 @@
 
     game.panel.hidden = false;
 
-    game.status.textContent = "Whack the mole!";
-
-    $("#wat-health", game.panel).value = trackHealth;
-    $("#wat-health-value", game.panel).textContent = trackHealth;
+    game.status.textContent =
+      "Whack the mole before it disappears!";
 
     hideMoles();
 
@@ -251,7 +267,7 @@
       $("#wat-refresh", game.panel).hidden = false;
     }
 
-    // Keep the finished game visible so the health bar and result can be seen.
+    // Keep the finished game visible.
   }
 
   function closeGame() {
@@ -268,9 +284,15 @@
   }
 
   function init() {
-    const button = document.querySelector("#whack-track");
+    const button =
+      document.querySelector("#whack-track");
 
-    if (!button || button.dataset.whackGameBound === "true") return;
+    if (
+      !button ||
+      button.dataset.whackGameBound === "true"
+    ) {
+      return;
+    }
 
     button.dataset.whackGameBound = "true";
 
@@ -279,7 +301,11 @@
       order: "99"
     });
 
-    button.addEventListener("click", startGame, true);
+    button.addEventListener(
+      "click",
+      startGame,
+      true
+    );
   }
 
   if (document.readyState === "loading") {
