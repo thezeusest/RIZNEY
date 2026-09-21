@@ -2,8 +2,6 @@
 (() => {
   "use strict";
 
-  // The track's health still controls the game,
-  // but the player does not see the health or hit count.
   const TRACK_HEALTH = 24;
   const GAME_DURATION = 60;
   const MOLE_VISIBLE_MS = 400;
@@ -25,6 +23,14 @@
       window.YT && player.getPlayerState() === YT.PlayerState.PLAYING;
   };
 
+  function updateHealth() {
+    const health = $("#wat-health", game.panel);
+    const healthText = $("#wat-health-text", game.panel);
+
+    health.value = trackHealth;
+    healthText.textContent = `${trackHealth}/${TRACK_HEALTH}`;
+  }
+
   function createGame() {
     if (game) return game;
 
@@ -37,6 +43,15 @@
       <p id="wat-status" aria-live="polite">
         Whack the mole before it disappears!
       </p>
+
+      <p>
+        <strong>
+          Track health:
+          <span id="wat-health-text">${TRACK_HEALTH}/${TRACK_HEALTH}</span>
+        </strong>
+      </p>
+      <progress id="wat-health" max="${TRACK_HEALTH}" value="${TRACK_HEALTH}"
+        aria-label="Track health"></progress>
 
       <p>
         <strong>
@@ -77,6 +92,15 @@
       scrollMarginTop: "120px"
     });
 
+    const health = $("#wat-health", panel);
+    Object.assign(health.style, {
+      display: "block",
+      width: "min(100%, 420px)",
+      height: "18px",
+      margin: "8px auto 16px",
+      accentColor: "#e63946"
+    });
+
     const board = $("#wat-board", panel);
 
     Object.assign(board.style, {
@@ -107,6 +131,7 @@
         hole.textContent = "💥";
 
         trackHealth--;
+        updateHealth();
 
         if (trackHealth <= 0) finish(true);
       });
@@ -211,7 +236,6 @@
     if (!playing()) {
       active = false;
 
-      // No extra instructional message.
       game.status.textContent = "";
 
       game.panel.hidden = false;
@@ -225,6 +249,7 @@
     }
 
     trackHealth = TRACK_HEALTH;
+    updateHealth();
     active = true;
 
     game.panel.hidden = false;
@@ -264,10 +289,9 @@
         new CustomEvent("rizney:track-whacked")
       );
 
-      $("#wat-refresh", game.panel).hidden = false;
+      // Hide the mini-game as soon as the track is whacked.
+      closeGame();
     }
-
-    // Keep the finished game visible.
   }
 
   function closeGame() {
