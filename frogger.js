@@ -443,7 +443,7 @@
       "frogger-tortoise";
 
     tortoise.textContent =
-      "🐢🛹";
+      "🐢";
 
     tortoise.setAttribute(
       "aria-hidden",
@@ -516,7 +516,7 @@
     placeTortoise();
 
     message(
-      "🐢🛹 GO! Watch the streets above you!"
+      "🐢 GO! Watch the streets above you!"
     );
 
     cancelAnimationFrame(
@@ -574,7 +574,7 @@
       placeTortoise();
 
       message(
-        "🐢🛹 NICE! Keep watching the traffic!"
+        "🐢 NICE! Keep watching the traffic!"
       );
 
       updateHUD();
@@ -627,7 +627,7 @@
     } else {
 
       message(
-        "🐢🛹 HOP! Watch the traffic above!"
+        "🐢 HOP! Watch the traffic above!"
       );
     }
 
@@ -741,7 +741,7 @@
     placeTortoise();
 
     message(
-      "🎉 YOU MADE IT! 🐢🛹 YOU REACHED THE TOP!"
+      "🎉 YOU MADE IT! 🐢 YOU REACHED THE TOP!"
     );
 
     updateHUD();
