@@ -2,20 +2,21 @@
 TORTOISE FROGGER 🐢
 Rizney / Mewzing Music Page
 
-CLEAN MOVEMENT VERSION
+NO-HOP VERSION
 
-- 🐢 Tortoise ONLY
-- No skateboard
-- No hop animation
-- Tortoise moves upward at a moderate speed
-- Slower than classic Frogger
-- Traffic does NOT move until game starts
-- Bottom street is always safe
+- 🐢 Tortoise only
+- NO skateboard
+- NO hop animation
+- NO jump
+- NO bounce
+- NO sliding animation
+- Tortoise simply moves to the next street
+- Slightly slower gameplay than classic Frogger
+- NO obstacles exist before game starts
+- Obstacles are created when game starts
+- End Game removes all obstacles
 - Getting hit sends tortoise to bottom
 - Getting hit scrolls page back to bottom
-- Song timer continues after getting hit
-- Restart Song resets game + song
-- End Game freezes everything
   */
 
 (() => {
@@ -67,16 +68,14 @@ let timeLeft = 0;
 let songStartedAt = 0;
 
 /*
-  How long the tortoise takes to
-  move from one street to the next.
+  This is NOT an animation duration.
 
-  Classic Frogger is much faster.
-
-  This is deliberately slower,
-  but not painfully slow.
+  It is simply a tiny input lock so the
+  player cannot accidentally move several
+  streets with one touch/click.
 */
 
-const MOVE_TIME = 560;
+const MOVE_LOCK = 180;
 
 const DEFAULT_SONG_TIME = 180;
 
@@ -240,12 +239,17 @@ style.textContent = `
   }
 
   /*
-    TORTOISE
+    THE TORTOISE.
 
-    No animation.
-    No hopping.
-    Just moves from
-    one street to another.
+    IMPORTANT:
+    There is NO transition here.
+
+    No hop.
+    No slide.
+    No jump.
+    No bounce.
+
+    It simply changes position.
   */
 
   .tf-tortoise {
@@ -276,18 +280,6 @@ style.textContent = `
         2px 3px 2px
         rgba(0,0,0,.55)
       );
-
-    /*
-      This is the ONLY
-      movement animation.
-
-      Smooth, but slower
-      than classic Frogger.
-    */
-
-    transition:
-      top ${MOVE_TIME}ms
-      ease-in-out;
   }
 
   .tf-hit-flash {
@@ -336,7 +328,7 @@ document.head.appendChild(
 );
 
 /* -----------------------------------------
-   TORTOISE
+   CREATE TORTOISE
 ----------------------------------------- */
 
 const tortoise =
@@ -346,7 +338,7 @@ tortoise.className =
   'tf-tortoise';
 
 /*
-  ONLY 🐢
+  ONLY THE TORTOISE.
 */
 
 tortoise.textContent =
@@ -443,11 +435,22 @@ function placeTortoise() {
   const rect =
     row.getBoundingClientRect();
 
+  /*
+    Fixed horizontal position.
+  */
+
   tortoise.style.left =
     (
       window.innerWidth *
       0.50
     ) + 'px';
+
+  /*
+    DIRECT POSITION.
+
+    No CSS transition means
+    there is NO animated hop.
+  */
 
   tortoise.style.top =
     (
@@ -474,11 +477,8 @@ function moveCameraToCurrentStreet(
     row.getBoundingClientRect();
 
   /*
-    Keep tortoise around 72%
-    down the screen.
-
-    This leaves the streets
-    above visible.
+    Keep tortoise low enough that
+    upcoming streets are visible.
   */
 
   const targetY =
@@ -504,14 +504,38 @@ function moveCameraToCurrentStreet(
         : 'auto'
   });
 
+  /*
+    After the camera moves,
+    put tortoise exactly on the
+    current row again.
+  */
+
   setTimeout(
     () => {
       placeTortoise();
     },
     smooth
-      ? 400
-      : 20
+      ? 450
+      : 0
   );
+}
+
+/* -----------------------------------------
+   REMOVE ALL OBSTACLES
+----------------------------------------- */
+
+function removeAllObstacles() {
+
+  document
+    .querySelectorAll(
+      '.tf-obstacle'
+    )
+    .forEach(
+      obstacle =>
+        obstacle.remove()
+    );
+
+  traffic.length = 0;
 }
 
 /* -----------------------------------------
@@ -520,32 +544,23 @@ function moveCameraToCurrentStreet(
 
 function sendToBottom() {
 
-  /*
-    Bottom song row.
-  */
-
   position =
     rows.length - 1;
 
   /*
-    Put tortoise there.
+    Immediately put tortoise
+    at bottom.
   */
 
   placeTortoise();
 
   /*
-    IMPORTANT:
-    Scroll the actual page
-    back down.
+    Scroll page back down.
   */
 
   moveCameraToCurrentStreet(
     true
   );
-
-  /*
-    Flash the starting street.
-  */
 
   const bottomRow =
     rows[position];
@@ -714,9 +729,27 @@ const trafficSymbols = [
   '💿'
 ];
 
+/*
+  EMPTY BEFORE GAME START.
+
+  Nothing gets created here.
+*/
+
 const traffic = [];
 
+/* -----------------------------------------
+   CREATE TRAFFIC
+----------------------------------------- */
+
 function createTraffic() {
+
+  /*
+    Safety:
+    Remove anything left over
+    from an earlier game.
+  */
+
+  removeAllObstacles();
 
   rows.forEach(
     (row, index) => {
@@ -784,12 +817,6 @@ function createTraffic() {
         obstacle.style.lineHeight =
           '1';
 
-        /*
-          Objects exist on the
-          streets but DO NOT MOVE
-          until the game starts.
-        */
-
         const startingX =
           Math.random() *
           100;
@@ -805,15 +832,10 @@ function createTraffic() {
             ? 1
             : -1;
 
-        obstacle.dataset.direction =
-          direction;
-
-        obstacle.dataset.speed =
-          (
-            0.35 +
-            Math.random() *
-            0.45
-          ).toFixed(2);
+        const speed =
+          0.35 +
+          Math.random() *
+          0.45;
 
         row.appendChild(
           obstacle
@@ -831,20 +853,15 @@ function createTraffic() {
             direction,
 
           speed:
-            parseFloat(
-              obstacle.dataset.speed
-            )
-
+            speed
         });
       }
     }
   );
 }
 
-createTraffic();
-
 /* -----------------------------------------
-   TRAFFIC ANIMATION
+   TRAFFIC LOOP
 ----------------------------------------- */
 
 let lastFrame =
@@ -862,11 +879,8 @@ function animateTraffic(now) {
     now;
 
   /*
-    THIS is important:
-
-    If the game isn't active,
-    traffic does absolutely
-    nothing.
+    ABSOLUTELY NOTHING happens
+    here unless the game is active.
   */
 
   if (
@@ -906,10 +920,6 @@ function animateTraffic(now) {
       }
     );
 
-    /*
-      Collision check.
-    */
-
     if (
       !moving &&
       checkCollision()
@@ -935,7 +945,7 @@ requestAnimationFrame(
 function checkCollision() {
 
   /*
-    Bottom row is always safe.
+    Bottom row is completely safe.
   */
 
   if (
@@ -1007,22 +1017,10 @@ function handleHit() {
     '💥 BONK! BACK TO THE BOTTOM!'
   );
 
-  /*
-    Tiny collision pause.
-  */
-
   setTimeout(
     () => {
 
-      /*
-        Reset position.
-      */
-
       sendToBottom();
-
-      /*
-        Allow movement again.
-      */
 
       moving = false;
 
@@ -1042,7 +1040,7 @@ function handleHit() {
 }
 
 /* -----------------------------------------
-   MOVE TORTOISE UP
+   MOVE UP
 ----------------------------------------- */
 
 function moveUp() {
@@ -1054,10 +1052,6 @@ function moveUp() {
   ) {
     return;
   }
-
-  /*
-    Already at top.
-  */
 
   if (
     position === 0
@@ -1071,33 +1065,36 @@ function moveUp() {
   moving = true;
 
   /*
-    One street upward.
+    Move exactly ONE street.
+
+    There is NO animation.
   */
 
   position--;
 
   /*
-    Move the page camera.
+    Put tortoise directly
+    on the new street.
+  */
+
+  placeTortoise();
+
+  /*
+    Then adjust camera so the
+    tortoise stays low.
   */
 
   moveCameraToCurrentStreet(
     true
   );
 
-  /*
-    Move tortoise smoothly.
-
-    NO HOP.
-  */
-
-  placeTortoise();
-
   setStatus(
     '🐢 MOVING...'
   );
 
   /*
-    Moderate tortoise speed.
+    This is only an input lock.
+    It does NOT animate the tortoise.
   */
 
   setTimeout(
@@ -1119,7 +1116,7 @@ function moveUp() {
       }
 
     },
-    MOVE_TIME
+    MOVE_LOCK
   );
 }
 
@@ -1128,6 +1125,13 @@ function moveUp() {
 ----------------------------------------- */
 
 function startGame() {
+
+  /*
+    Remove anything from a previous
+    game first.
+  */
+
+  removeAllObstacles();
 
   active = true;
 
@@ -1145,7 +1149,7 @@ function startGame() {
   placeTortoise();
 
   /*
-    Scroll to bottom.
+    Scroll to starting street.
   */
 
   moveCameraToCurrentStreet(
@@ -1153,7 +1157,14 @@ function startGame() {
   );
 
   /*
-    Restart song.
+    NOW — and only now —
+    create the obstacles.
+  */
+
+  createTraffic();
+
+  /*
+    Restart current song.
   */
 
   restartYouTubeSong();
@@ -1200,7 +1211,7 @@ function winGame() {
 }
 
 /* -----------------------------------------
-   LOSE
+   SONG ENDED
 ----------------------------------------- */
 
 function loseGame() {
@@ -1219,6 +1230,12 @@ function loseGame() {
   moving = false;
 
   stopTimer();
+
+  /*
+    Freeze traffic where it is.
+    It remains visible because the game
+    ended, but nothing moves.
+  */
 
   setStatus(
     '⌛ SONG OVER!'
@@ -1241,12 +1258,18 @@ function endGame() {
 
   stopTimer();
 
+  /*
+    REMOVE ALL TRAFFIC.
+
+    This means there are literally
+    NO obstacle objects on screen
+    after ending the game.
+  */
+
+  removeAllObstacles();
+
   position =
     rows.length - 1;
-
-  /*
-    Return tortoise to bottom.
-  */
 
   placeTortoise();
 
@@ -1318,11 +1341,6 @@ document.addEventListener(
         'button, a, input, select, textarea, audio, video, iframe, #tortoise-frogger'
       );
 
-    /*
-      Buttons and controls do not
-      move the tortoise.
-    */
-
     if (target) {
       return;
     }
@@ -1389,6 +1407,13 @@ window.addEventListener(
 
 position =
   rows.length - 1;
+
+/*
+  No obstacles are created here.
+
+  The screen should be completely
+  obstacle-free until START.
+*/
 
 placeTortoise();
 
