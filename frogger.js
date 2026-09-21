@@ -14,7 +14,7 @@
   let game = null;
 
   /* ---------------------------------------------------------
-     Find the existing YouTube player
+     Find YouTube player
      --------------------------------------------------------- */
 
   function getPlayer() {
@@ -22,16 +22,17 @@
   }
 
   /* ---------------------------------------------------------
-     Find the existing song rows
+     Find song rows
      --------------------------------------------------------- */
 
   function getSongRows() {
-    return [
-      ...document.querySelectorAll("#song-list .song"),
-      ...document.querySelectorAll("#song-list > *")
-    ].filter((row, index, all) => {
-      return row && row.children && row !== all[index - 1];
-    });
+    let rows = document.querySelectorAll("#song-list .song");
+
+    if (!rows.length) {
+      rows = document.querySelectorAll(".song");
+    }
+
+    return [...rows];
   }
 
   /* ---------------------------------------------------------
@@ -45,10 +46,6 @@
     style.id = "tortoise-frogger-styles";
 
     style.textContent = `
-      /* ---------------------------------------------
-         Tortoise Frogger
-         --------------------------------------------- */
-
       .frogger-street {
         position: relative !important;
         overflow: hidden !important;
@@ -71,7 +68,6 @@
         user-select: none !important;
         white-space: nowrap !important;
         filter: drop-shadow(0 2px 2px rgba(0,0,0,.45));
-        transition: transform .16s ease;
       }
 
       .frogger-obstacle {
@@ -84,29 +80,39 @@
         white-space: nowrap !important;
       }
 
-      .frogger-hud {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin: 8px 0;
-        padding: 8px 10px;
+      /* Bottom-of-page Frogger controls */
+
+      .frogger-footer {
+        width: min(92%, 680px);
+        margin: 30px auto 20px;
+        padding: 12px;
+        box-sizing: border-box;
         border: 1px solid #d4af37;
-        border-radius: 10px;
+        border-radius: 12px;
         background: #120b18;
         color: #f5d76e;
-        font-size: .9rem;
         text-align: center;
       }
 
-      .frogger-hud strong {
-        color: #fff;
+      .frogger-footer-title {
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .frogger-footer-info {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: .9rem;
+        margin-bottom: 8px;
       }
 
       .frogger-message {
-        width: 100%;
+        min-height: 1.4em;
         color: #c084fc;
+        margin: 6px 0;
       }
 
       .frogger-button {
@@ -114,7 +120,7 @@
         border-radius: 8px;
         background: #1d1028;
         color: #f5d76e;
-        padding: 7px 12px;
+        padding: 8px 14px;
         cursor: pointer;
         font: inherit;
       }
@@ -148,46 +154,65 @@
   }
 
   /* ---------------------------------------------------------
-     Create the little HUD
+     Create footer
      --------------------------------------------------------- */
 
-  function createHUD() {
-    if (document.getElementById("frogger-hud")) {
-      return document.getElementById("frogger-hud");
+  function createFooter() {
+    if (document.getElementById("frogger-footer")) {
+      return document.getElementById("frogger-footer");
     }
 
-    const hud = document.createElement("div");
-    hud.id = "frogger-hud";
-    hud.className = "frogger-hud";
+    const footer = document.createElement("section");
 
-    hud.innerHTML = `
-      <div>🐢🛹 <strong>FROGGER</strong></div>
-      <div>TIME: <strong id="frogger-time">--:--</strong></div>
-      <div>STREETS: <strong id="frogger-progress">0 / 0</strong></div>
-      <div class="frogger-message" id="frogger-message">
+    footer.id = "frogger-footer";
+    footer.className = "frogger-footer";
+    footer.setAttribute(
+      "aria-label",
+      "Tortoise Frogger"
+    );
+
+    footer.innerHTML = `
+      <div class="frogger-footer-title">
+        🐢🛹 TORTOISE FROGGER
+      </div>
+
+      <div class="frogger-footer-info">
+        <span>TIME: <strong id="frogger-time">--:--</strong></span>
+        <span>STREETS: <strong id="frogger-progress">0 / 0</strong></span>
+      </div>
+
+      <div
+        class="frogger-message"
+        id="frogger-message"
+        aria-live="polite"
+      >
         Play a song, then tap anywhere to hop.
       </div>
-      <button class="frogger-button" id="frogger-restart" type="button">
-        Restart
+
+      <button
+        class="frogger-button"
+        id="frogger-restart"
+        type="button"
+      >
+        🐢 START / RESTART FROGGER
       </button>
     `;
 
-    const songList =
-      document.querySelector("#song-list") ||
-      document.querySelector("main") ||
-      document.body;
+    /*
+      Put it at the VERY BOTTOM of the page.
+    */
 
-    songList.parentNode.insertBefore(hud, songList);
+    document.body.appendChild(footer);
 
     document
       .getElementById("frogger-restart")
       .addEventListener("click", restart);
 
-    return hud;
+    return footer;
   }
 
   /* ---------------------------------------------------------
-     HUD helpers
+     HUD
      --------------------------------------------------------- */
 
   function message(text) {
@@ -196,7 +221,7 @@
   }
 
   function updateHUD() {
-    if (!game) return;
+    if (!game) return 0;
 
     const player = getPlayer();
 
@@ -205,15 +230,20 @@
     try {
       const duration = player?.getDuration?.() || 0;
       const current = player?.getCurrentTime?.() || 0;
-      remaining = Math.max(0, duration - current);
+
+      remaining = Math.max(
+        0,
+        duration - current
+      );
     } catch (_) {}
 
-    const minutes = Math.floor(remaining / 60);
-    const seconds = Math.floor(remaining % 60);
-
-    const timeEl = document.getElementById("frogger-time");
+    const timeEl =
+      document.getElementById("frogger-time");
 
     if (timeEl) {
+      const minutes = Math.floor(remaining / 60);
+      const seconds = Math.floor(remaining % 60);
+
       timeEl.textContent =
         `${minutes}:${String(seconds).padStart(2, "0")}`;
     }
@@ -230,17 +260,11 @@
   }
 
   /* ---------------------------------------------------------
-     Get a usable song row list
+     Prepare streets
      --------------------------------------------------------- */
 
   function prepareRows() {
-    let rows = document.querySelectorAll("#song-list .song");
-
-    if (!rows.length) {
-      rows = document.querySelectorAll(".song");
-    }
-
-    game.rows = [...rows];
+    game.rows = getSongRows();
 
     game.rows.forEach((row, index) => {
       row.classList.add("frogger-street");
@@ -249,7 +273,10 @@
   }
 
   /* ---------------------------------------------------------
-     Put random traffic on every street
+     Traffic
+     
+     IMPORTANT:
+     The bottom/start row gets NO obstacle.
      --------------------------------------------------------- */
 
   function addTraffic() {
@@ -258,49 +285,66 @@
       "🚙",
       "🏎️",
       "🎸",
-      "🎵",
-      "🛹"
+      "🎵"
     ];
 
     game.rows.forEach((row, index) => {
-      row.querySelectorAll(".frogger-obstacle").forEach(el => el.remove());
+      row
+        .querySelectorAll(".frogger-obstacle")
+        .forEach(el => el.remove());
 
-      const obstacle = document.createElement("span");
+      /*
+        The last row is the starting street.
+        It is always SAFE.
+      */
+
+      if (index === game.rows.length - 1) {
+        return;
+      }
+
+      const obstacle =
+        document.createElement("span");
 
       obstacle.className = "frogger-obstacle";
 
       obstacle.textContent =
-        obstacles[Math.floor(Math.random() * obstacles.length)];
+        obstacles[
+          Math.floor(
+            Math.random() * obstacles.length
+          )
+        ];
 
       obstacle.style.top =
         `${20 + Math.random() * 50}%`;
 
       obstacle.dataset.direction =
-        Math.random() < 0.5 ? "left" : "right";
+        Math.random() < 0.5
+          ? "left"
+          : "right";
 
       obstacle.dataset.speed =
         String(35 + Math.random() * 55);
 
       obstacle.dataset.x =
-        String(
-          obstacle.dataset.direction === "left"
-            ? 100 + Math.random() * 30
-            : -20 - Math.random() * 30
-        );
+        obstacle.dataset.direction === "left"
+          ? String(100 + Math.random() * 30)
+          : String(-20 - Math.random() * 30);
 
       row.appendChild(obstacle);
     });
   }
 
   /* ---------------------------------------------------------
-     Put the tortoise on a row
+     Place tortoise
      --------------------------------------------------------- */
 
   function placeTortoise() {
     if (!game) return;
 
     game.rows.forEach(row => {
-      row.classList.remove("frogger-current-street");
+      row.classList.remove(
+        "frogger-current-street"
+      );
 
       row
         .querySelectorAll(".frogger-tortoise")
@@ -311,13 +355,22 @@
 
     if (!row) return;
 
-    row.classList.add("frogger-current-street");
+    row.classList.add(
+      "frogger-current-street"
+    );
 
-    const tortoise = document.createElement("span");
+    const tortoise =
+      document.createElement("span");
 
-    tortoise.className = "frogger-tortoise";
+    tortoise.className =
+      "frogger-tortoise";
+
     tortoise.textContent = "🐢🛹";
-    tortoise.setAttribute("aria-hidden", "true");
+
+    tortoise.setAttribute(
+      "aria-hidden",
+      "true"
+    );
 
     row.appendChild(tortoise);
 
@@ -328,50 +381,68 @@
   }
 
   /* ---------------------------------------------------------
-     Start / restart
+     Start
      --------------------------------------------------------- */
 
   function start() {
     const player = getPlayer();
 
     if (!player) {
-      message("Play a song first — the song is the clock!");
+      message(
+        "Play a song first — the song is the clock!"
+      );
       return;
     }
 
     let duration = 0;
 
     try {
-      duration = player.getDuration?.() || 0;
+      duration =
+        player.getDuration?.() || 0;
     } catch (_) {}
 
     if (!duration) {
-      message("Start playing a song first — then the tortoise can roll!");
+      message(
+        "Start playing a song first — then roll!"
+      );
       return;
     }
 
     prepareRows();
 
     if (!game.rows.length) {
-      message("I couldn't find the song rows.");
+      message(
+        "I couldn't find the song rows."
+      );
       return;
     }
 
     addTraffic();
 
-    game.position = game.rows.length - 1;
+    /*
+      LAST row = bottom of page = starting point.
+    */
+
+    game.position =
+      game.rows.length - 1;
+
     game.active = true;
     game.won = false;
-    game.lastFrame = performance.now();
+    game.lastFrame =
+      performance.now();
 
     placeTortoise();
 
     message(
-      "🐢🛹 GO! Tap anywhere to hop to the next street!"
+      "🐢🛹 GO! Tap anywhere to hop upward!"
     );
 
-    cancelAnimationFrame(game.animation);
-    game.animation = requestAnimationFrame(loop);
+    cancelAnimationFrame(
+      game.animation
+    );
+
+    game.animation =
+      requestAnimationFrame(loop);
   }
 
   function restart(event) {
@@ -380,16 +451,14 @@
   }
 
   /* ---------------------------------------------------------
-     One hop
+     Hop
      --------------------------------------------------------- */
 
   function hop(event) {
     if (!game || !game.active) return;
 
     /*
-      IMPORTANT:
-      Buttons, links, the player, inputs, etc.
-      do NOT count as a hop.
+      These elements DON'T count as a hop.
     */
 
     if (
@@ -402,15 +471,47 @@
 
     event.preventDefault();
 
-    if (game.position <= 0) {
-      win();
+    /*
+      Starting row is safe.
+      The tortoise can always make its first hop.
+    */
+
+    if (
+      game.position ===
+      game.rows.length - 1
+    ) {
+      game.position--;
+      placeTortoise();
+
+      message(
+        "🐢🛹 NICE! Keep climbing!"
+      );
+
+      updateHUD();
       return;
     }
 
-    const currentRow = game.rows[game.position];
+    /*
+      Check the street BEFORE moving.
+    */
 
-    if (checkCollision(currentRow)) {
-      lose("💥 BONK! The tortoise got hit!");
+    if (
+      checkCollision(
+        game.rows[game.position]
+      )
+    ) {
+      lose(
+        "💥 BONK! Traffic got you!"
+      );
+      return;
+    }
+
+    /*
+      Top reached.
+    */
+
+    if (game.position <= 0) {
+      win();
       return;
     }
 
@@ -418,11 +519,15 @@
 
     placeTortoise();
 
-    message(
-      game.position === 0
-        ? "🏁 ONE MORE STEP — REACH THE TOP!"
-        : "🐢🛹 HOP!"
-    );
+    if (game.position === 0) {
+      message(
+        "🏁 LAST STREET! REACH THE TOP!"
+      );
+    } else {
+      message(
+        "🐢🛹 HOP!"
+      );
+    }
 
     updateHUD();
   }
@@ -434,20 +539,35 @@
   function checkCollision(row) {
     if (!row) return false;
 
-    const tortoise = row.querySelector(".frogger-tortoise");
+    /*
+      No obstacle on starting row,
+      so there is nothing to hit there.
+    */
+
+    const tortoise =
+      row.querySelector(
+        ".frogger-tortoise"
+      );
 
     if (!tortoise) return false;
 
-    const t = tortoise.getBoundingClientRect();
+    const t =
+      tortoise.getBoundingClientRect();
 
-    const tx = t.left + t.width / 2;
-    const ty = t.top + t.height / 2;
+    const tx =
+      t.left + t.width / 2;
+
+    const ty =
+      t.top + t.height / 2;
 
     const obstacles =
-      row.querySelectorAll(".frogger-obstacle");
+      row.querySelectorAll(
+        ".frogger-obstacle"
+      );
 
     for (const obstacle of obstacles) {
-      const r = obstacle.getBoundingClientRect();
+      const r =
+        obstacle.getBoundingClientRect();
 
       if (
         tx >= r.left - 8 &&
@@ -463,27 +583,37 @@
   }
 
   /* ---------------------------------------------------------
-     Game over
+     Lose
      --------------------------------------------------------- */
 
   function lose(text) {
     game.active = false;
 
-    cancelAnimationFrame(game.animation);
+    cancelAnimationFrame(
+      game.animation
+    );
 
-    message(text + " Tap Restart to try again.");
+    message(
+      text +
+      " Tap START / RESTART to try again."
+    );
 
-    const row = game.rows[game.position];
+    const row =
+      game.rows[game.position];
 
-    row?.classList.add("frogger-danger");
+    row?.classList.add(
+      "frogger-danger"
+    );
 
     setTimeout(() => {
-      row?.classList.remove("frogger-danger");
+      row?.classList.remove(
+        "frogger-danger"
+      );
     }, 500);
   }
 
   /* ---------------------------------------------------------
-     Victory
+     Win
      --------------------------------------------------------- */
 
   function win() {
@@ -492,21 +622,23 @@
     game.active = false;
     game.won = true;
 
-    cancelAnimationFrame(game.animation);
+    cancelAnimationFrame(
+      game.animation
+    );
 
     game.position = 0;
 
     placeTortoise();
 
     message(
-      "🎉 YOU MADE IT! 🐢🛹 The tortoise reached the top!"
+      "🎉 YOU MADE IT! 🐢🛹 YOU REACHED THE TOP!"
     );
 
     updateHUD();
   }
 
   /* ---------------------------------------------------------
-     Move the traffic
+     Move traffic
      --------------------------------------------------------- */
 
   function moveTraffic(delta) {
@@ -514,54 +646,76 @@
 
     game.rows.forEach(row => {
       const obstacle =
-        row.querySelector(".frogger-obstacle");
+        row.querySelector(
+          ".frogger-obstacle"
+        );
 
       if (!obstacle) return;
 
-      let x = parseFloat(obstacle.dataset.x);
+      let x =
+        parseFloat(
+          obstacle.dataset.x
+        );
 
       const speed =
-        parseFloat(obstacle.dataset.speed) || 50;
+        parseFloat(
+          obstacle.dataset.speed
+        ) || 50;
 
       const direction =
         obstacle.dataset.direction === "left"
           ? -1
           : 1;
 
-      x += direction * speed * delta / 1000;
+      x +=
+        direction *
+        speed *
+        delta /
+        1000;
 
-      /*
-        Wrap the obstacle around the street.
-      */
-
-      if (direction > 0 && x > 110) {
+      if (
+        direction > 0 &&
+        x > 110
+      ) {
         x = -20;
       }
 
-      if (direction < 0 && x < -20) {
+      if (
+        direction < 0 &&
+        x < -20
+      ) {
         x = 110;
       }
 
-      obstacle.dataset.x = String(x);
-      obstacle.style.left = `${x}%`;
+      obstacle.dataset.x =
+        String(x);
+
+      obstacle.style.left =
+        `${x}%`;
     });
   }
 
   /* ---------------------------------------------------------
-     Main animation loop
+     Main loop
      --------------------------------------------------------- */
 
   function loop(now) {
-    if (!game || !game.active) return;
+    if (!game || !game.active) {
+      return;
+    }
 
     const delta =
-      Math.min(100, now - game.lastFrame);
+      Math.min(
+        100,
+        now - game.lastFrame
+      );
 
     game.lastFrame = now;
 
     moveTraffic(delta);
 
-    const remaining = updateHUD();
+    const remaining =
+      updateHUD();
 
     /*
       Song ended.
@@ -569,26 +723,37 @@
 
     if (remaining <= 0.15) {
       lose(
-        "🎵 The song ended before the tortoise reached the top!"
+        "🎵 The song ended before you reached the top!"
       );
       return;
     }
 
     /*
-      Collision can also happen while the tortoise
-      is sitting on a street.
+      Collision while sitting on a street.
     */
 
-    if (checkCollision(game.rows[game.position])) {
-      lose("💥 BONK! Traffic got you!");
-      return;
+    if (
+      game.position <
+      game.rows.length - 1
+    ) {
+      if (
+        checkCollision(
+          game.rows[game.position]
+        )
+      ) {
+        lose(
+          "💥 BONK! Traffic got you!"
+        );
+        return;
+      }
     }
 
-    game.animation = requestAnimationFrame(loop);
+    game.animation =
+      requestAnimationFrame(loop);
   }
 
   /* ---------------------------------------------------------
-     Global tap handler
+     Tap anywhere
      --------------------------------------------------------- */
 
   function installTouchControl() {
@@ -610,7 +775,7 @@
 
     addStyles();
 
-    createHUD();
+    createFooter();
 
     game = {
       rows: [],
@@ -628,7 +793,9 @@
     );
   }
 
-  if (document.readyState === "loading") {
+  if (
+    document.readyState === "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
       init,
