@@ -1,7 +1,7 @@
 /* Whack-a-Track mini-game for the Rizney YouTube player. */
 (() => {
   "use strict";
-  const TRACK_HEALTH = 24, GAME_DURATION = 60, MOLE_VISIBLE_MS = 400, MOLE_INTERVAL_MS = 1200;
+  const TRACK_HEALTH = 24, GAME_DURATION = 60, MOLE_VISIBLE_MS = 440, MOLE_INTERVAL_MS = 1400;
   const youtube = () => window.rizneyPlayer || window.player || null;
   let game, active = false, trackHealth = TRACK_HEALTH, secondsLeft = GAME_DURATION;
   let moleTimer, hideTimer, gameTimer;
