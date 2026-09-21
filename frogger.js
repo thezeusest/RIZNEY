@@ -1,575 +1,409 @@
-/* RIZNEY RHYME CLIMB
-   Your song blocks become the levels.
-   Hard rhyme = 2 points
-   Soft rhyme = 1 point
-*/
+<!-- =========================================================
+     RHYME CLIMB
+     First test version using pronouncingjs
+     ========================================================= -->
 
+<style>
+  #rhyme-climb-game {
+    margin: 24px auto;
+    max-width: 560px;
+    padding: 18px;
+    border: 2px solid #5b2b75;
+    border-radius: 16px;
+    background: #120b18;
+    color: #f3d18a;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  #rhyme-climb-game h2 {
+    margin: 0 0 8px;
+    font-size: 1.35rem;
+  }
+
+  #rhyme-climb-game .rhyme-word {
+    font-size: 2.2rem;
+    font-weight: bold;
+    margin: 12px 0;
+  }
+
+  #rhyme-climb-game .rhyme-status {
+    min-height: 28px;
+    margin: 10px 0;
+    font-weight: bold;
+  }
+
+  #rhyme-climb-game input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 13px;
+    border-radius: 10px;
+    border: 1px solid #70408d;
+    background: #1d1028;
+    color: white;
+    font-size: 17px;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  #rhyme-climb-game button {
+    width: 100%;
+    padding: 13px;
+    border: 0;
+    border-radius: 10px;
+    background: #d69a32;
+    color: #160d1c;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  #rhyme-climb-game button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  #rhyme-climb-tortoise {
+    font-size: 42px;
+    margin: 8px 0;
+    transition: transform 0.25s ease;
+  }
+
+  #rhyme-climb-tortoise.climb {
+    transform: translateY(-8px);
+  }
+
+  #rhyme-climb-launch {
+    margin: 30px auto;
+    max-width: 560px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  #rhyme-climb-start {
+    width: 100%;
+    padding: 15px;
+    border: 0;
+    border-radius: 12px;
+    background: #d69a32;
+    color: #160d1c;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+
+<!-- Game interface -->
+<div id="rhyme-climb-game" style="display:none;">
+  <h2>🐢 RHYME CLIMB</h2>
+
+  <div id="rhyme-climb-level">Level: 1</div>
+
+  <div id="rhyme-climb-tortoise">🐢</div>
+
+  <div>Find a word that rhymes with:</div>
+
+  <div class="rhyme-word" id="rhyme-climb-word">MOON</div>
+
+  <form id="rhyme-climb-form">
+    <input
+      id="rhyme-climb-input"
+      type="text"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      placeholder="Type your rhyme..."
+    >
+
+    <button type="submit">CLIMB 🐢</button>
+  </form>
+
+  <div
+    id="rhyme-climb-status"
+    class="rhyme-status"
+    aria-live="polite"
+  ></div>
+
+  <button
+    id="rhyme-climb-next"
+    type="button"
+    style="display:none;"
+  >
+    NEXT RHYME
+  </button>
+</div>
+
+<!-- This stays at the bottom/footer of the page -->
+<div id="rhyme-climb-launch">
+  <button id="rhyme-climb-start" type="button">
+    🐢 START RHYME CLIMB
+  </button>
+</div>
+
+<!-- pronouncingjs browser library -->
+<script src="https://cdn.jsdelivr.net/gh/aparrish/pronouncingjs@master/build/pronouncing-browser.js"></script>
+
+<script>
 (() => {
-  'use strict';
+  "use strict";
 
-  if (window.__rhymeClimbLoaded) return;
-  window.__rhymeClimbLoaded = true;
+  const startButton = document.getElementById("rhyme-climb-start");
+  const game = document.getElementById("rhyme-climb-game");
+  const form = document.getElementById("rhyme-climb-form");
+  const input = document.getElementById("rhyme-climb-input");
+  const wordDisplay = document.getElementById("rhyme-climb-word");
+  const status = document.getElementById("rhyme-climb-status");
+  const levelDisplay = document.getElementById("rhyme-climb-level");
+  const tortoise = document.getElementById("rhyme-climb-tortoise");
 
-  const initRhymeClimb = () => {
+  let songs = [];
+  let currentLevel = 0;
+  let targetWord = "";
 
-    /* -----------------------------------------
-       RHYME BANK
-       Add more words here later.
-       hard = strong/perfect rhymes
-       soft = near/slant rhymes
-    ----------------------------------------- */
+  /*
+    Common words only.
 
-    const rhymeBank = {
-      moon: {
-        hard: ['tune', 'spoon', 'soon', 'noon', 'June'],
-        soft: ['home', 'room', 'boom']
-      },
+    The dictionary itself is much larger, but we don't want
+    the game randomly choosing weird names or obscure words.
+  */
+  const targetWords = [
+    "moon",
+    "light",
+    "night",
+    "dream",
+    "heart",
+    "fire",
+    "rain",
+    "blue",
+    "star",
+    "day",
+    "sound",
+    "song",
+    "love",
+    "time",
+    "road",
+    "home",
+    "sky",
+    "stone",
+    "sea",
+    "tree",
+    "green",
+    "gold",
+    "dream",
+    "dance",
+    "face",
+    "place",
+    "run",
+    "fun",
+    "way",
+    "play"
+  ];
 
-      fire: {
-        hard: ['tire', 'wire', 'hire', 'higher'],
-        soft: ['far', 'fear', 'fair']
-      },
+  function getSongs() {
+    return Array.from(document.querySelectorAll(".song"));
+  }
 
-      light: {
-        hard: ['night', 'right', 'sight', 'fight', 'bright'],
-        soft: ['life', 'like', 'line']
-      },
-
-      rain: {
-        hard: ['train', 'pain', 'brain', 'chain', 'plane'],
-        soft: ['run', 'ring', 'room']
-      },
-
-      blue: {
-        hard: ['true', 'glue', 'shoe', 'clue', 'flew'],
-        soft: ['you', 'new', 'through']
-      },
-
-      star: {
-        hard: ['car', 'far', 'jar', 'bar'],
-        soft: ['heart', 'hard', 'dark']
-      },
-
-      dream: {
-        hard: ['team', 'cream', 'stream', 'beam'],
-        soft: ['dreams', 'green', 'seem']
-      },
-
-      night: {
-        hard: ['light', 'right', 'fight', 'sight'],
-        soft: ['life', 'like', 'line']
-      },
-
-      day: {
-        hard: ['say', 'way', 'play', 'stay', 'gray'],
-        soft: ['time', 'mine', 'name']
-      },
-
-      sound: {
-        hard: ['round', 'found', 'ground', 'bound'],
-        soft: ['song', 'down', 'around']
-      },
-
-      song: {
-        hard: ['long', 'wrong', 'strong', 'along'],
-        soft: ['sound', 'sing', 'gone']
-      },
-
-      heart: {
-        hard: ['start', 'part', 'cart', 'art'],
-        soft: ['hard', 'dark', 'far']
+  function randomTargetWord() {
+    const usable = targetWords.filter(word => {
+      if (
+        typeof window.pronouncing === "undefined" ||
+        typeof window.pronouncing.rhymes !== "function"
+      ) {
+        return true;
       }
-    };
 
+      return window.pronouncing.rhymes(word).length > 0;
+    });
 
-    /* -----------------------------------------
-       FIND YOUR SONG LEVELS
-    ----------------------------------------- */
+    const pool = usable.length ? usable : targetWords;
 
-    const songs = Array.from(document.querySelectorAll('.song'));
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
 
-    if (!songs.length) {
-      console.warn('Rhyme Climb: no .song elements found.');
+  function showLevel() {
+    levelDisplay.textContent =
+      "Level: " + (currentLevel + 1) + " / " + songs.length;
+
+    const currentSong = songs[currentLevel];
+
+    if (currentSong) {
+      currentSong.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }
+  }
+
+  function newRhyme() {
+    targetWord = randomTargetWord();
+
+    wordDisplay.textContent = targetWord.toUpperCase();
+
+    input.value = "";
+    input.focus();
+
+    status.textContent = "";
+  }
+
+  function animateTortoise() {
+    tortoise.classList.remove("climb");
+
+    /*
+      Force a browser reflow so the animation can restart.
+    */
+    void tortoise.offsetWidth;
+
+    tortoise.classList.add("climb");
+
+    setTimeout(() => {
+      tortoise.classList.remove("climb");
+    }, 300);
+  }
+
+  function moveUp(amount) {
+    currentLevel += amount;
+
+    if (currentLevel >= songs.length - 1) {
+      currentLevel = songs.length - 1;
+      showLevel();
+
+      status.textContent = "🏁 YOU REACHED THE TOP! 🐢";
+      input.disabled = true;
+
       return;
     }
 
+    showLevel();
+    animateTortoise();
 
-    /* -----------------------------------------
-       GAME STATE
-    ----------------------------------------- */
+    setTimeout(() => {
+      newRhyme();
+    }, 300);
+  }
 
-    let currentLevel = songs.length - 1;
-    let score = 0;
-    let started = false;
-    let finished = false;
-    let timeLeft = 90;
-    let timer = null;
-
-    let currentWord = '';
-    let currentHard = [];
-    let currentSoft = [];
-
-
-    /* -----------------------------------------
-       GAME UI
-    ----------------------------------------- */
-
-    const game = document.createElement('section');
-
-    game.id = 'rhyme-climb-game';
-
-    game.innerHTML = `
-      <div class="rc-inner">
-
-        <div class="rc-title">🎵 RHYME CLIMB</div>
-
-        <div class="rc-stats">
-          <span id="rc-level">LEVEL</span>
-          <span id="rc-score">SCORE: 0</span>
-          <span id="rc-time">TIME: 90</span>
-        </div>
-
-        <div id="rc-word-box">
-          <div class="rc-small">RHYME WITH</div>
-          <div id="rc-word">READY?</div>
-        </div>
-
-        <form id="rc-form">
-          <input
-            id="rc-input"
-            type="text"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="type a rhyme..."
-          >
-
-          <button id="rc-submit" type="submit">
-            ⬆️ CLIMB
-          </button>
-        </form>
-
-        <div id="rc-message">Get to the top before the song ends!</div>
-
-        <button id="rc-start" type="button">
-          START RHYME CLIMB
-        </button>
-
-      </div>
-    `;
-
-
-    /* -----------------------------------------
-       STYLES
-    ----------------------------------------- */
-
-    const style = document.createElement('style');
-
-    style.textContent = `
-      #rhyme-climb-game {
-        margin: 25px 0;
-        padding: 16px;
-        background: #120b18;
-        border: 2px solid #5d3978;
-        border-radius: 14px;
-        color: #f4c76b;
-        text-align: center;
-        font-family: inherit;
-      }
-
-      #rhyme-climb-game .rc-inner {
-        max-width: 500px;
-        margin: auto;
-      }
-
-      #rhyme-climb-game .rc-title {
-        font-size: 1.35rem;
-        font-weight: bold;
-        margin-bottom: 10px;
-      }
-
-      #rhyme-climb-game .rc-stats {
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: .8rem;
-        margin-bottom: 14px;
-        color: #ddd;
-      }
-
-      #rc-word-box {
-        background: #1d1028;
-        border: 2px solid #f4c76b;
-        border-radius: 12px;
-        padding: 18px 10px;
-        margin-bottom: 12px;
-      }
-
-      #rhyme-climb-game .rc-small {
-        font-size: .7rem;
-        letter-spacing: 2px;
-        color: #aaa;
-        margin-bottom: 5px;
-      }
-
-      #rc-word {
-        font-size: 2.2rem;
-        font-weight: bold;
-        color: #fff;
-        text-transform: uppercase;
-      }
-
-      #rc-form {
-        display: flex;
-        gap: 8px;
-        width: 100%;
-      }
-
-      #rc-input {
-        flex: 1;
-        min-width: 0;
-        box-sizing: border-box;
-        padding: 12px;
-        border-radius: 9px;
-        border: 2px solid #5d3978;
-        background: #09070d;
-        color: #fff;
-        font-size: 16px;
-        text-align: center;
-        outline: none;
-      }
-
-      #rc-input:focus {
-        border-color: #f4c76b;
-      }
-
-      #rc-submit,
-      #rc-start {
-        border: 0;
-        border-radius: 9px;
-        padding: 12px 14px;
-        background: #f4c76b;
-        color: #160d1d;
-        font-weight: bold;
-        cursor: pointer;
-      }
-
-      #rc-start {
-        margin-top: 12px;
-        width: 100%;
-      }
-
-      #rc-message {
-        min-height: 24px;
-        margin-top: 12px;
-        font-size: .9rem;
-        color: #ddd;
-      }
-
-      #rhyme-climb-game.rc-hit #rc-word-box {
-        animation: rcPop .18s ease-out;
-      }
-
-      @keyframes rcPop {
-        50% {
-          transform: scale(1.05);
-        }
-      }
-
-      @media (max-width: 480px) {
-        #rc-form {
-          flex-direction: column;
-        }
-
-        #rc-submit {
-          width: 100%;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-
-
-    /* -----------------------------------------
-       PUT GAME ABOVE THE SONG LEVELS
-    ----------------------------------------- */
-
-    const firstSong = songs[0];
-
-    if (firstSong && firstSong.parentNode) {
-      firstSong.parentNode.insertBefore(game, firstSong);
+  function checkRhyme(answer) {
+    if (!answer) {
+      status.textContent = "Type a word first 😸";
+      return;
     }
 
+    if (
+      typeof window.pronouncing === "undefined" ||
+      typeof window.pronouncing.rhymes !== "function"
+    ) {
+      status.textContent =
+        "The rhyme dictionary hasn't loaded yet. Try again.";
+      return;
+    }
 
-    /* -----------------------------------------
-       ELEMENTS
-    ----------------------------------------- */
+    const cleanAnswer = answer
+      .toLowerCase()
+      .replace(/[^a-z']/g, "")
+      .trim();
 
-    const wordEl = game.querySelector('#rc-word');
-    const levelEl = game.querySelector('#rc-level');
-    const scoreEl = game.querySelector('#rc-score');
-    const timeEl = game.querySelector('#rc-time');
-    const messageEl = game.querySelector('#rc-message');
-    const inputEl = game.querySelector('#rc-input');
-    const form = game.querySelector('#rc-form');
-    const startBtn = game.querySelector('#rc-start');
+    const cleanTarget = targetWord.toLowerCase();
 
+    if (!cleanAnswer) {
+      status.textContent = "Type a word first 😸";
+      return;
+    }
 
-    /* -----------------------------------------
-       PICK RANDOM WORD
-    ----------------------------------------- */
+    if (cleanAnswer === cleanTarget) {
+      status.textContent =
+        "😸 That's the same word! Try an actual rhyme.";
+      return;
+    }
 
-    const chooseWord = () => {
+    const perfectRhymes =
+      window.pronouncing.rhymes(cleanTarget) || [];
 
-      const words = Object.keys(rhymeBank);
+    const isPerfect = perfectRhymes.includes(cleanAnswer);
 
-      const word = words[Math.floor(Math.random() * words.length)];
+    if (isPerfect) {
+      status.textContent =
+        "✨ PERFECT RHYME! +2 LEVELS";
 
-      currentWord = word;
-      currentHard = rhymeBank[word].hard;
-      currentSoft = rhymeBank[word].soft;
+      moveUp(2);
+      return;
+    }
 
-      wordEl.textContent = word.toUpperCase();
+    /*
+      First version of "soft rhyme":
 
-      inputEl.value = '';
-      inputEl.focus();
+      If the player's word is in the dictionary and shares
+      the final few sounds with the target, we'll give it
+      a softer one-level climb.
 
-    };
+      This is intentionally forgiving for now.
+    */
 
+    const targetPhones =
+      window.pronouncing.phonesForWord(cleanTarget);
 
-    /* -----------------------------------------
-       UPDATE LEVEL DISPLAY
-    ----------------------------------------- */
+    const answerPhones =
+      window.pronouncing.phonesForWord(cleanAnswer);
 
-    const updateLevel = () => {
+    if (
+      targetPhones.length &&
+      answerPhones.length
+    ) {
+      const target = targetPhones[0]
+        .split(" ")
+        .slice(-3)
+        .join(" ");
 
-      const displayLevel = songs.length - currentLevel;
+      const answer = answerPhones[0]
+        .split(" ")
+        .slice(-3)
+        .join(" ");
 
-      levelEl.textContent =
-        `LEVEL: ${displayLevel}/${songs.length}`;
+      if (
+        target === answer ||
+        targetPhones[0].split(" ").slice(-2).join(" ") ===
+        answerPhones[0].split(" ").slice(-2).join(" ")
+      ) {
+        status.textContent =
+          "😸 CLOSE RHYME! +1 LEVEL";
 
-      scoreEl.textContent =
-        `SCORE: ${score}`;
-
-      timeEl.textContent =
-        `TIME: ${timeLeft}`;
-
-    };
-
-
-    /* -----------------------------------------
-       MOVE PLAYER UP THE SONG LIST
-    ----------------------------------------- */
-
-    const climb = () => {
-
-      if (currentLevel <= 0) {
-        winGame();
+        moveUp(1);
         return;
       }
+    }
 
-      currentLevel--;
+    status.textContent =
+      "🐢 Nope! Try another rhyme.";
+  }
 
-      songs[currentLevel].scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+  startButton.addEventListener("click", () => {
+    songs = getSongs();
 
-      updateLevel();
+    if (!songs.length) {
+      alert(
+        "I couldn't find any .song blocks on this page yet."
+      );
+      return;
+    }
 
-      chooseWord();
+    currentLevel = songs.length - 1;
 
-    };
+    game.style.display = "block";
 
+    input.disabled = false;
 
-    /* -----------------------------------------
-       CHECK RHYME
-    ----------------------------------------- */
+    showLevel();
+    newRhyme();
 
-    const checkAnswer = (answer) => {
-
-      answer = answer
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z'-]/g, '');
-
-      if (!answer) {
-        messageEl.textContent = 'Type something first 😸';
-        return;
-      }
-
-      if (currentHard.includes(answer)) {
-
-        score += 2;
-
-        messageEl.textContent =
-          '🟢 HARD RHYME! +2';
-
-        game.classList.remove('rc-hit');
-        void game.offsetWidth;
-        game.classList.add('rc-hit');
-
-        climb();
-
-        return;
-      }
-
-
-      if (currentSoft.includes(answer)) {
-
-        score += 1;
-
-        messageEl.textContent =
-          '🟡 SOFT RHYME! +1';
-
-        game.classList.remove('rc-hit');
-        void game.offsetWidth;
-        game.classList.add('rc-hit');
-
-        climb();
-
-        return;
-      }
-
-
-      messageEl.textContent =
-        '❌ Nope! Try another rhyme.';
-
-    };
-
-
-    /* -----------------------------------------
-       SUBMIT ANSWER
-    ----------------------------------------- */
-
-    form.addEventListener('submit', (event) => {
-
-      event.preventDefault();
-
-      if (!started || finished) return;
-
-      checkAnswer(inputEl.value);
-
+    game.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
     });
+  });
 
+  form.addEventListener("submit", event => {
+    event.preventDefault();
 
-    /* -----------------------------------------
-       START GAME
-    ----------------------------------------- */
+    checkRhyme(input.value);
+  });
 
-    const startGame = () => {
-
-      clearInterval(timer);
-
-      currentLevel = songs.length - 1;
-      score = 0;
-      timeLeft = 90;
-      started = true;
-      finished = false;
-
-      startBtn.style.display = 'none';
-
-      updateLevel();
-
-      messageEl.textContent =
-        'Find a rhyme and climb!';
-
-      chooseWord();
-
-      timer = setInterval(() => {
-
-        timeLeft--;
-
-        updateLevel();
-
-        if (timeLeft <= 0) {
-          loseGame();
-        }
-
-      }, 1000);
-
-    };
-
-
-    /* -----------------------------------------
-       WIN
-    ----------------------------------------- */
-
-    const winGame = () => {
-
-      finished = true;
-      started = false;
-
-      clearInterval(timer);
-
-      wordEl.textContent = '🏆 TOP!';
-
-      messageEl.innerHTML =
-        `<strong>YOU MADE IT! 😸</strong><br>
-         Final score: ${score}`;
-
-      inputEl.disabled = true;
-
-      startBtn.textContent = 'PLAY AGAIN';
-      startBtn.style.display = 'block';
-
-    };
-
-
-    /* -----------------------------------------
-       LOSE
-    ----------------------------------------- */
-
-    const loseGame = () => {
-
-      finished = true;
-      started = false;
-
-      clearInterval(timer);
-
-      timeLeft = 0;
-      updateLevel();
-
-      wordEl.textContent = '⏰ TIME!';
-
-      messageEl.innerHTML =
-        `You reached level ${songs.length - currentLevel} of ${songs.length}.<br>
-         Score: ${score}`;
-
-      inputEl.disabled = true;
-
-      startBtn.textContent = 'TRY AGAIN';
-      startBtn.style.display = 'block';
-
-    };
-
-
-    /* -----------------------------------------
-       START BUTTON
-    ----------------------------------------- */
-
-    startBtn.addEventListener('click', () => {
-
-      inputEl.disabled = false;
-
-      startGame();
-
-    });
-
-
-    /* -----------------------------------------
-       INITIAL STATE
-    ----------------------------------------- */
-
-    form.style.display = 'none';
-    wordEl.textContent = 'READY?';
-    levelEl.textContent = `LEVEL: 0/${songs.length}`;
-    timeEl.textContent = 'TIME: 90';
-
-  };
-
-
-  /* Wait until the song blocks exist. */
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initRhymeClimb);
+})();
+</script>
