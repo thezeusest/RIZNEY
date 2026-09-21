@@ -2,18 +2,20 @@
 TORTOISE FROGGER 🐢
 Rizney / Mewzing Music Page
 
-FEATURES:
+CLEAN MOVEMENT VERSION
 
-- 🐢 Tortoise ONLY — no skateboard
-- Existing song rows are the streets
-- Tap anywhere that isn't a button/control to hop
-- Slow tortoise movement
+- 🐢 Tortoise ONLY
+- No skateboard
+- No hop animation
+- Tortoise moves upward at a moderate speed
+- Slower than classic Frogger
+- Traffic does NOT move until game starts
 - Bottom street is always safe
-- Getting hit sends tortoise back to bottom
-- Getting hit ALSO scrolls the page back to bottom
+- Getting hit sends tortoise to bottom
+- Getting hit scrolls page back to bottom
 - Song timer continues after getting hit
-- Restart Song resets the game and song
-- End Game stops Frogger
+- Restart Song resets game + song
+- End Game freezes everything
   */
 
 (() => {
@@ -52,18 +54,29 @@ if (rows.length < 2) {
 
 let active = false;
 let gameOver = false;
-let position = rows.length - 1;
 
-let hopping = false;
+let position =
+  rows.length - 1;
+
+let moving = false;
+
 let timer = null;
 
 let timeLeft = 0;
+
 let songStartedAt = 0;
 
 /*
-  BIGGER NUMBER = SLOWER TORTOISE
+  How long the tortoise takes to
+  move from one street to the next.
+
+  Classic Frogger is much faster.
+
+  This is deliberately slower,
+  but not painfully slow.
 */
-const HOP_TIME = 900;
+
+const MOVE_TIME = 560;
 
 const DEFAULT_SONG_TIME = 180;
 
@@ -71,9 +84,11 @@ const DEFAULT_SONG_TIME = 180;
    FOOTER
 ----------------------------------------- */
 
-const footer = document.createElement('div');
+const footer =
+  document.createElement('div');
 
-footer.id = 'tortoise-frogger';
+footer.id =
+  'tortoise-frogger';
 
 footer.innerHTML = `
   <div id="tf-status">
@@ -101,22 +116,31 @@ footer.innerHTML = `
   </div>
 `;
 
-document.body.appendChild(footer);
+document.body.appendChild(
+  footer
+);
 
 /* -----------------------------------------
    CSS
 ----------------------------------------- */
 
-const style = document.createElement('style');
+const style =
+  document.createElement('style');
 
 style.textContent = `
 
   #tortoise-frogger {
     position: relative;
     z-index: 99999;
+
     width: 100%;
     box-sizing: border-box;
-    padding: 12px 10px 18px;
+
+    padding:
+      12px
+      10px
+      18px;
+
     margin-top: 20px;
 
     background:
@@ -126,10 +150,12 @@ style.textContent = `
         #080509
       );
 
-    border-top: 2px solid #d69a2d;
+    border-top:
+      2px solid #d69a2d;
 
     box-shadow:
-      0 -4px 18px rgba(0,0,0,.45);
+      0 -4px 18px
+      rgba(0,0,0,.45);
 
     text-align: center;
 
@@ -140,73 +166,110 @@ style.textContent = `
 
   #tf-status {
     color: #d69a2d;
+
     font-size: 13px;
+
     font-weight: bold;
+
     letter-spacing: 1px;
+
     margin-bottom: 5px;
   }
 
   #tf-timer {
     color: #fff;
+
     font-size: 24px;
+
     font-weight: bold;
+
     margin-bottom: 9px;
-    font-variant-numeric: tabular-nums;
+
+    font-variant-numeric:
+      tabular-nums;
   }
 
   #tf-controls {
     display: flex;
-    justify-content: center;
-    align-items: center;
+
+    justify-content:
+      center;
+
+    align-items:
+      center;
+
     gap: 7px;
-    flex-wrap: wrap;
+
+    flex-wrap:
+      wrap;
   }
 
   #tf-controls button {
-    border: 1px solid #d69a2d;
 
-    background: #1d1028;
+    border:
+      1px solid #d69a2d;
 
-    color: #f0c56a;
+    background:
+      #1d1028;
 
-    border-radius: 7px;
+    color:
+      #f0c56a;
 
-    padding: 9px 11px;
+    border-radius:
+      7px;
 
-    font-size: 12px;
-    font-weight: bold;
+    padding:
+      9px 11px;
 
-    cursor: pointer;
+    font-size:
+      12px;
 
-    touch-action: manipulation;
+    font-weight:
+      bold;
+
+    cursor:
+      pointer;
+
+    touch-action:
+      manipulation;
   }
 
   #tf-controls button:active {
-    transform: scale(.96);
+    transform:
+      scale(.96);
   }
 
   /*
-    THE TORTOISE
+    TORTOISE
 
-    Notice:
-    It is ONLY 🐢
-    No skateboard.
+    No animation.
+    No hopping.
+    Just moves from
+    one street to another.
   */
 
   .tf-tortoise {
 
-    position: fixed;
+    position:
+      fixed;
 
-    z-index: 99990;
+    z-index:
+      99990;
 
-    font-size: 34px;
+    font-size:
+      34px;
 
-    line-height: 1;
+    line-height:
+      1;
 
-    pointer-events: none;
+    pointer-events:
+      none;
 
     transform:
-      translate(-50%, -50%);
+      translate(
+        -50%,
+        -50%
+      );
 
     filter:
       drop-shadow(
@@ -214,10 +277,17 @@ style.textContent = `
         rgba(0,0,0,.55)
       );
 
-    transition:
-      top ${HOP_TIME}ms
-      cubic-bezier(.22,.61,.36,1);
+    /*
+      This is the ONLY
+      movement animation.
 
+      Smooth, but slower
+      than classic Frogger.
+    */
+
+    transition:
+      top ${MOVE_TIME}ms
+      ease-in-out;
   }
 
   .tf-hit-flash {
@@ -228,38 +298,45 @@ style.textContent = `
   @keyframes tfHitFlash {
 
     0% {
-      filter: brightness(1);
+      filter:
+        brightness(1);
     }
 
     50% {
-      filter: brightness(2.2);
+      filter:
+        brightness(2.2);
     }
 
     100% {
-      filter: brightness(1);
+      filter:
+        brightness(1);
     }
-
   }
 
   @media (max-width: 600px) {
 
     #tf-controls button {
-      padding: 10px 9px;
-      font-size: 11px;
+      padding:
+        10px 9px;
+
+      font-size:
+        11px;
     }
 
     .tf-tortoise {
-      font-size: 32px;
+      font-size:
+        32px;
     }
-
   }
 
 `;
 
-document.head.appendChild(style);
+document.head.appendChild(
+  style
+);
 
 /* -----------------------------------------
-   CREATE TORTOISE
+   TORTOISE
 ----------------------------------------- */
 
 const tortoise =
@@ -269,16 +346,20 @@ tortoise.className =
   'tf-tortoise';
 
 /*
-  ONLY TORTOISE.
+  ONLY 🐢
 */
-tortoise.textContent = '🐢';
+
+tortoise.textContent =
+  '🐢';
 
 tortoise.setAttribute(
   'aria-hidden',
   'true'
 );
 
-document.body.appendChild(tortoise);
+document.body.appendChild(
+  tortoise
+);
 
 /* -----------------------------------------
    CONTROLS
@@ -314,7 +395,8 @@ const timerDisplay =
 ----------------------------------------- */
 
 function setStatus(message) {
-  status.textContent = message;
+  status.textContent =
+    message;
 }
 
 function formatTime(seconds) {
@@ -336,20 +418,19 @@ function formatTime(seconds) {
   return (
     minutes +
     ':' +
-    String(secs).padStart(
-      2,
-      '0'
-    )
+    String(secs)
+      .padStart(2, '0')
   );
 }
 
 function setTimer(seconds) {
+
   timerDisplay.textContent =
     formatTime(seconds);
 }
 
 /* -----------------------------------------
-   PUT TORTOISE ON CURRENT STREET
+   PLACE TORTOISE
 ----------------------------------------- */
 
 function placeTortoise() {
@@ -359,42 +440,25 @@ function placeTortoise() {
 
   if (!row) return;
 
-  rows.forEach(
-    r =>
-      r.classList.remove(
-        'tf-row-active'
-      )
-  );
-
-  row.classList.add(
-    'tf-row-active'
-  );
-
   const rect =
     row.getBoundingClientRect();
 
-  /*
-    Tortoise stays roughly 72% down
-    the screen.
-
-    This leaves plenty of road visible
-    above him.
-  */
-
   tortoise.style.left =
-    (window.innerWidth * 0.50)
-    + 'px';
+    (
+      window.innerWidth *
+      0.50
+    ) + 'px';
 
   tortoise.style.top =
     (
       rect.top +
-      rect.height * 0.50
-    )
-    + 'px';
+      rect.height *
+      0.50
+    ) + 'px';
 }
 
 /* -----------------------------------------
-   MOVE CAMERA TO CURRENT STREET
+   CAMERA
 ----------------------------------------- */
 
 function moveCameraToCurrentStreet(
@@ -410,47 +474,48 @@ function moveCameraToCurrentStreet(
     row.getBoundingClientRect();
 
   /*
-    Put the tortoise around 72% down
-    the visible screen.
+    Keep tortoise around 72%
+    down the screen.
 
-    That means the player can see
-    several streets ABOVE them.
+    This leaves the streets
+    above visible.
   */
 
   const targetY =
-    window.innerHeight * 0.72;
+    window.innerHeight *
+    0.72;
 
-  const scrollAmount =
+  const targetScroll =
     window.scrollY +
     rect.top -
     targetY;
 
   window.scrollTo({
-    top: Math.max(
-      0,
-      scrollAmount
-    ),
+
+    top:
+      Math.max(
+        0,
+        targetScroll
+      ),
+
     behavior:
       smooth
         ? 'smooth'
         : 'auto'
   });
 
-  /*
-    Reposition tortoise after the
-    browser has moved the page.
-  */
-
   setTimeout(
     () => {
       placeTortoise();
     },
-    smooth ? 450 : 20
+    smooth
+      ? 400
+      : 20
   );
 }
 
 /* -----------------------------------------
-   SEND TORTOISE ALL THE WAY HOME
+   RETURN TO BOTTOM
 ----------------------------------------- */
 
 function sendToBottom() {
@@ -463,23 +528,23 @@ function sendToBottom() {
     rows.length - 1;
 
   /*
-    Put him on the bottom row FIRST.
+    Put tortoise there.
   */
 
   placeTortoise();
 
   /*
-    Then move the CAMERA back down.
-
-    THIS is the important part:
-    getting hit now physically scrolls
-    the page back to the bottom.
+    IMPORTANT:
+    Scroll the actual page
+    back down.
   */
 
-  moveCameraToCurrentStreet(true);
+  moveCameraToCurrentStreet(
+    true
+  );
 
   /*
-    Flash the safe starting street.
+    Flash the starting street.
   */
 
   const bottomRow =
@@ -500,7 +565,7 @@ function sendToBottom() {
 }
 
 /* -----------------------------------------
-   RESTART YOUTUBE SONG
+   YOUTUBE RESTART
 ----------------------------------------- */
 
 function restartYouTubeSong() {
@@ -517,20 +582,24 @@ function restartYouTubeSong() {
   try {
 
     iframe.contentWindow.postMessage(
+
       JSON.stringify({
         event: 'command',
         func: 'seekTo',
         args: [0, true]
       }),
+
       '*'
     );
 
     iframe.contentWindow.postMessage(
+
       JSON.stringify({
         event: 'command',
         func: 'playVideo',
         args: []
       }),
+
       '*'
     );
 
@@ -563,6 +632,7 @@ function getSongDuration() {
     isFinite(media.duration) &&
     media.duration > 0
   ) {
+
     return media.duration;
   }
 
@@ -593,7 +663,9 @@ function startTimer() {
   songStartedAt =
     Date.now();
 
-  setTimer(timeLeft);
+  setTimer(
+    timeLeft
+  );
 
   timer =
     setInterval(
@@ -660,10 +732,6 @@ function createTraffic() {
         return;
       }
 
-      /*
-        One or two objects per street.
-      */
-
       const count =
         index % 3 === 0
           ? 2
@@ -716,18 +784,21 @@ function createTraffic() {
         obstacle.style.lineHeight =
           '1';
 
+        /*
+          Objects exist on the
+          streets but DO NOT MOVE
+          until the game starts.
+        */
+
+        const startingX =
+          Math.random() *
+          100;
+
         obstacle.style.left =
-          (
-            Math.random() * 100
-          ) + '%';
+          startingX + '%';
 
         obstacle.style.top =
           '50%';
-
-        /*
-          Different streets travel
-          in different directions.
-        */
 
         const direction =
           i % 2 === 0
@@ -737,15 +808,11 @@ function createTraffic() {
         obstacle.dataset.direction =
           direction;
 
-        /*
-          Traffic remains faster than
-          our tortoise.
-        */
-
         obstacle.dataset.speed =
           (
             0.35 +
-            Math.random() * 0.45
+            Math.random() *
+            0.45
           ).toFixed(2);
 
         row.appendChild(
@@ -753,13 +820,12 @@ function createTraffic() {
         );
 
         traffic.push({
+
           element:
             obstacle,
 
           x:
-            parseFloat(
-              obstacle.style.left
-            ),
+            startingX,
 
           direction:
             direction,
@@ -768,6 +834,7 @@ function createTraffic() {
             parseFloat(
               obstacle.dataset.speed
             )
+
         });
       }
     }
@@ -794,50 +861,62 @@ function animateTraffic(now) {
   lastFrame =
     now;
 
-  traffic.forEach(
-    car => {
-
-      let x =
-        car.x;
-
-      x +=
-        car.direction *
-        car.speed *
-        delta *
-        0.08;
-
-      if (
-        x > 110
-      ) {
-        x = -15;
-      }
-
-      if (
-        x < -15
-      ) {
-        x = 110;
-      }
-
-      car.x =
-        x;
-
-      car.element.style.left =
-        x + '%';
-    }
-  );
-
   /*
-    Check for collisions.
+    THIS is important:
+
+    If the game isn't active,
+    traffic does absolutely
+    nothing.
   */
 
   if (
     active &&
-    !gameOver &&
-    !hopping &&
-    checkCollision()
+    !gameOver
   ) {
 
-    handleHit();
+    traffic.forEach(
+      car => {
+
+        let x =
+          car.x;
+
+        x +=
+          car.direction *
+          car.speed *
+          delta *
+          0.08;
+
+        if (
+          x > 110
+        ) {
+          x = -15;
+        }
+
+        if (
+          x < -15
+        ) {
+          x = 110;
+        }
+
+        car.x =
+          x;
+
+        car.element.style.left =
+          x + '%';
+      }
+    );
+
+    /*
+      Collision check.
+    */
+
+    if (
+      !moving &&
+      checkCollision()
+    ) {
+
+      handleHit();
+    }
   }
 
   requestAnimationFrame(
@@ -850,19 +929,20 @@ requestAnimationFrame(
 );
 
 /* -----------------------------------------
-   COLLISION DETECTION
+   COLLISION
 ----------------------------------------- */
 
 function checkCollision() {
 
   /*
-    Bottom row is ALWAYS SAFE.
+    Bottom row is always safe.
   */
 
   if (
     position ===
     rows.length - 1
   ) {
+
     return false;
   }
 
@@ -886,18 +966,18 @@ function checkCollision() {
     of obstacles
   ) {
 
-    const obstacleRect =
+    const rect =
       obstacle.getBoundingClientRect();
 
     const hit =
       tortoiseRect.left <
-        obstacleRect.right &&
+        rect.right &&
       tortoiseRect.right >
-        obstacleRect.left &&
+        rect.left &&
       tortoiseRect.top <
-        obstacleRect.bottom &&
+        rect.bottom &&
       tortoiseRect.bottom >
-        obstacleRect.top;
+        rect.top;
 
     if (hit) {
       return true;
@@ -908,7 +988,7 @@ function checkCollision() {
 }
 
 /* -----------------------------------------
-   HIT!
+   HIT
 ----------------------------------------- */
 
 function handleHit() {
@@ -916,36 +996,35 @@ function handleHit() {
   if (
     !active ||
     gameOver ||
-    hopping
+    moving
   ) {
     return;
   }
 
-  hopping = true;
+  moving = true;
 
   setStatus(
     '💥 BONK! BACK TO THE BOTTOM!'
   );
 
   /*
-    Give the collision a tiny moment
-    so the player can actually see it.
+    Tiny collision pause.
   */
 
   setTimeout(
     () => {
 
       /*
-        THIS sends both:
-        1. the tortoise
-        2. the CAMERA
-
-        back to the bottom.
+        Reset position.
       */
 
       sendToBottom();
 
-      hopping = false;
+      /*
+        Allow movement again.
+      */
+
+      moving = false;
 
       if (
         active &&
@@ -958,26 +1037,26 @@ function handleHit() {
       }
 
     },
-    300
+    250
   );
 }
 
 /* -----------------------------------------
-   TORTOISE HOP
+   MOVE TORTOISE UP
 ----------------------------------------- */
 
-function hop() {
+function moveUp() {
 
   if (
     !active ||
     gameOver ||
-    hopping
+    moving
   ) {
     return;
   }
 
   /*
-    Already at the top?
+    Already at top.
   */
 
   if (
@@ -989,7 +1068,7 @@ function hop() {
     return;
   }
 
-  hopping = true;
+  moving = true;
 
   /*
     One street upward.
@@ -998,35 +1077,33 @@ function hop() {
   position--;
 
   /*
-    Move the CAMERA ONLY when
-    necessary to keep the tortoise
-    low on screen.
+    Move the page camera.
   */
 
-  moveCameraToCurrentStreet(true);
+  moveCameraToCurrentStreet(
+    true
+  );
 
   /*
-    Move the tortoise.
+    Move tortoise smoothly.
+
+    NO HOP.
   */
 
   placeTortoise();
 
   setStatus(
-    '🐢 HOP...'
+    '🐢 MOVING...'
   );
 
   /*
-    Slow tortoise.
+    Moderate tortoise speed.
   */
 
   setTimeout(
     () => {
 
-      hopping = false;
-
-      /*
-        Reaching the top wins.
-      */
+      moving = false;
 
       if (
         position === 0
@@ -1042,7 +1119,7 @@ function hop() {
       }
 
     },
-    HOP_TIME
+    MOVE_TIME
   );
 }
 
@@ -1056,20 +1133,19 @@ function startGame() {
 
   gameOver = false;
 
-  hopping = false;
+  moving = false;
 
   position =
     rows.length - 1;
 
   /*
-    Start at bottom.
+    Put tortoise at bottom.
   */
 
   placeTortoise();
 
   /*
-    Scroll all the way down to
-    the starting street.
+    Scroll to bottom.
   */
 
   moveCameraToCurrentStreet(
@@ -1077,14 +1153,13 @@ function startGame() {
   );
 
   /*
-    Restart the currently playing
-    YouTube song.
+    Restart song.
   */
 
   restartYouTubeSong();
 
   /*
-    Restart timer.
+    Start timer.
   */
 
   startTimer();
@@ -1111,7 +1186,7 @@ function winGame() {
 
   gameOver = true;
 
-  hopping = false;
+  moving = false;
 
   stopTimer();
 
@@ -1141,7 +1216,7 @@ function loseGame() {
 
   gameOver = true;
 
-  hopping = false;
+  moving = false;
 
   stopTimer();
 
@@ -1162,7 +1237,7 @@ function endGame() {
 
   gameOver = true;
 
-  hopping = false;
+  moving = false;
 
   stopTimer();
 
@@ -1170,8 +1245,7 @@ function endGame() {
     rows.length - 1;
 
   /*
-    Return to the bottom when
-    ending the game too.
+    Return tortoise to bottom.
   */
 
   placeTortoise();
@@ -1188,7 +1262,7 @@ function endGame() {
 }
 
 /* -----------------------------------------
-   BUTTONS
+   BUTTON EVENTS
 ----------------------------------------- */
 
 startButton.addEventListener(
@@ -1225,7 +1299,7 @@ endButton.addEventListener(
 );
 
 /* -----------------------------------------
-   TAP ANYWHERE TO HOP
+   TAP ANYWHERE = MOVE
 ----------------------------------------- */
 
 document.addEventListener(
@@ -1245,22 +1319,22 @@ document.addEventListener(
       );
 
     /*
-      Buttons and controls do NOT
-      make the tortoise hop.
+      Buttons and controls do not
+      move the tortoise.
     */
 
     if (target) {
       return;
     }
 
-    hop();
+    moveUp();
 
   },
   true
 );
 
 /* -----------------------------------------
-   TOUCH
+   TOUCH = MOVE
 ----------------------------------------- */
 
 document.addEventListener(
@@ -1285,7 +1359,7 @@ document.addEventListener(
 
     event.preventDefault();
 
-    hop();
+    moveUp();
 
   },
   {
