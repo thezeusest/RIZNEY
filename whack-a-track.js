@@ -4,9 +4,9 @@
 
   // Hits are not ammunition: every visible mole can be whacked. The track's
   // health is the only progress limit, and it is displayed as a real bar.
-  const TRACK_HEALTH = 12;
+  const TRACK_HEALTH = 24;
   const GAME_DURATION = 60;
-  const MOLE_VISIBLE_MS = 900;
+  const MOLE_VISIBLE_MS = 700;
   const MOLE_INTERVAL_MS = 1400;
   const youtube = () => window.rizneyPlayer || window.player || null;
   let game;
